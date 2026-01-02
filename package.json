@@ -1,7 +1,7 @@
 {
-  "name": "discord.js-typescript-template",
-  "version": "1.0.0",
-  "description": "A discord.js bot template using TypeScript.",
+  "name": "wakatime-discord-bot",
+  "version": "1.1.0",
+  "description": "Discord bot that interacts with the WakaTime api and showing coding stats to the users.",
   "main": "index.js",
   "scripts": {
     "start": "ts-node src/index.ts",

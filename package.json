@@ -12,15 +12,20 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/zFl4wless/discord.js-typescript-template.git"
+    "url": "git+https://github.com/zFl4wless/wakatime-discord-bot.git"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "discord",
+    "bot",
+    "wakatime",
+    "typescript"
+  ],
+  "author": "fl4wless",
+  "license": "MIT",
   "bugs": {
-    "url": "https://github.com/zFl4wless/discord.js-typescript-template/issues"
+    "url": "https://github.com/zFl4wless/wakatime-discord-bot/issues"
   },
-  "homepage": "https://github.com/zFl4wless/discord.js-typescript-template#readme",
+  "homepage": "https://github.com/zFl4wless/wakatime-discord-bot#readme",
   "dependencies": {
     "@prisma/client": "^6.16.2",
     "axios": "^1.3.2",

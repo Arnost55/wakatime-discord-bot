@@ -8,8 +8,9 @@ datasource db {
 }
 
 model User {
-  id           Int    @id @default(autoincrement())
+  id           Int     @id @default(autoincrement())
   accessToken  String
   refreshToken String
-  userId       String @unique
+  userId       String  @unique
+  wakaUsername String?
 }

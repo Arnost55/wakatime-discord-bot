@@ -1,0 +1,26 @@
+{
+  "version": "6.19",
+  "steps": [
+    {
+      "tag": "CreateMigration",
+      "migration": {
+        "migrations": [
+          {
+            "tag": "AlterTable",
+            "table": "User",
+            "operations": [
+              {
+                "tag": "AddColumn",
+                "column": {
+                  "name": "wakaUsername",
+                  "type": "Text",
+                  "optional": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

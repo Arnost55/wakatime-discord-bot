@@ -6,12 +6,13 @@ import { UserDto } from './user.dto';
  *
  * @param UserDto The user to be saved.
  */
-export async function saveUser({ userId, accessToken, refreshToken }: UserDto) {
+export async function saveUser({ userId, accessToken, refreshToken, wakaUsername }: UserDto) {
     await prismaClient.user.create({
         data: {
             userId: userId,
             accessToken: accessToken,
             refreshToken: refreshToken,
+            wakaUsername: wakaUsername,
         },
     });
 }
@@ -21,7 +22,7 @@ export async function saveUser({ userId, accessToken, refreshToken }: UserDto) {
  * 
  * @param UserDto The user to be updated.
  */
-export async function updateUser({ userId, accessToken, refreshToken }: UserDto) {
+export async function updateUser({ userId, accessToken, refreshToken, wakaUsername }: UserDto) {
     await prismaClient.user.update({
         where: {
             userId: userId,
@@ -29,6 +30,7 @@ export async function updateUser({ userId, accessToken, refreshToken }: UserDto)
         data: {
             accessToken: accessToken,
             refreshToken: refreshToken,
+            wakaUsername: wakaUsername,
         },
     });
 }
@@ -59,6 +61,19 @@ export async function getUserById(userId: string) {
     return prismaClient.user.findUnique({
         where: {
             userId: userId,
+        },
+    });
+}
+
+/**
+ * Gets all users with a WakaTime username.
+ *
+ * @returns All registered users.
+ */
+export async function getAllUsers() {
+    return prismaClient.user.findMany({
+        where: {
+            wakaUsername: { not: null },
         },
     });
 }

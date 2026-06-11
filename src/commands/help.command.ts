@@ -20,6 +20,10 @@ export default new Command({
                     value: '> The developer of this bot is **fl4wless**.',
                 },
                 {
+                    name: 'Commands',
+                    value: '> `/authorize` - Link your WakaTime account\n> `/profile [user]` - View coding profile with language chart\n> `/rank` - Server leaderboard with pie chart\n> `/toplangs` - Server-wide top languages\n> `/languagestats <language>` - Stats for a specific language\n> `/project <user>` - Project breakdown\n> `/all-time-since-today` - Total coding time ever\n> `/revoke` - Info on revoking access\n> `/help` - This message',
+                },
+                {
                     name: 'Source Code',
                     value: '> The source code of this bot is available on [GitHub](https://github.com/zFl4wless/wakatime-discord-bot). Feel free to contribute!',
                 },

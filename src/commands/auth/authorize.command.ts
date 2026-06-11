@@ -32,7 +32,7 @@ export default new Command({
             new ButtonBuilder()
                 .setStyle(ButtonStyle.Link)
                 .setLabel('Login')
-                .setURL(`https://wakatime.com/oauth/authorize?${new URLSearchParams(authorizeQueryParams)}`),
+                .setURL(`${process.env.WAKATIME_BASE_URL || 'https://wakatime.com'}/oauth/authorize?${new URLSearchParams(authorizeQueryParams)}`),
         );
 
         await interaction.reply({

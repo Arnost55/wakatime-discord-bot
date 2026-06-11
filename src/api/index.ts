@@ -11,7 +11,7 @@ const app = express();
 app.get('/redirect', async (req, res) => {
     const code = req.query.code;
     try {
-        const response = await axios('https://wakatime.com/oauth/token', {
+        const response = await axios(`${process.env.WAKATIME_BASE_URL || 'https://wakatime.com'}/oauth/token`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',

@@ -12,9 +12,10 @@ declare global {
             // Database
             DATABASE_URL: string;
 
-            // WakaTime Client Credentials
+            // WakaTime
             CLIENT_ID: string;
             CLIENT_SECRET: string;
+            WAKATIME_BASE_URL?: string;
 
             // Crypto
             CRYPTO_PASSWORD: string;

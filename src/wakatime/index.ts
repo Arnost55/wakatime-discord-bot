@@ -7,7 +7,7 @@ import { HttpResponseCode } from './http-response-code';
 import { ExtendedInteraction } from '../types/core/Command';
 import { MessageFlags } from 'discord.js';
 
-const BASE_URL = 'https://wakatime.com/api/v1';
+const BASE_URL = `${process.env.WAKATIME_BASE_URL || 'https://wakatime.com'}/api/v1`;
 
 /**
  * Gets data from the WakaTime API and sends it to the user.

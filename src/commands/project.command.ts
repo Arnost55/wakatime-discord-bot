@@ -6,6 +6,12 @@ import { defaultEmbed, errorEmbed, loadingEmbed } from '../utils/embeds';
 import { StatsResponse } from '../types/wakatime/stats.types';
 import { MessageFlags, AttachmentBuilder } from 'discord.js';
 
+/**
+ * Get project time breakdown for a user.
+ * Fetches stats from the WakaTime API and renders a project pie chart.
+ *
+ * @see https://wakatime.com/developers#stats
+ */
 export default new Command({
     name: 'project',
     description: 'Get project stats for a user.',

@@ -1,5 +1,12 @@
 import QuickChart from 'quickchart-js';
 
+/**
+ * Generate a pie chart as a PNG buffer using QuickChart.
+ * Items below 1% of the total are grouped into an "Other" slice.
+ *
+ * @param dataPoints - Label/value pairs to chart.
+ * @returns A PNG buffer of the pie chart.
+ */
 export function generatePieChart(dataPoints: { label: string; value: number }[]): Promise<Buffer> {
     const total = dataPoints.reduce((s, p) => s + p.value, 0);
     const threshold = 0.01;
@@ -53,6 +60,14 @@ export function generatePieChart(dataPoints: { label: string; value: number }[])
     return chart.toBinary();
 }
 
+/**
+ * Generate a stacked bar chart as a PNG buffer using QuickChart.
+ * Each dataset represents a user, each label a category (e.g. language).
+ *
+ * @param labels   - Category names for the x-axis.
+ * @param datasets - Per-user data series to stack in the bars.
+ * @returns A PNG buffer of the bar chart.
+ */
 export function generateBarChart(
     labels: string[],
     datasets: { label: string; data: number[] }[],

@@ -6,6 +6,12 @@ import { defaultEmbed, errorEmbed, loadingEmbed } from '../utils/embeds';
 import { StatsResponse } from '../types/wakatime/stats.types';
 import { MessageFlags, AttachmentBuilder } from 'discord.js';
 
+/**
+ * Get stats for a specific programming language across all registered users.
+ * Displays total hours and a per-user breakdown with a pie chart.
+ *
+ * @see https://wakatime.com/developers#stats
+ */
 export default new Command({
     name: 'languagestats',
     description: 'Get stats about a specific programming language across all registered users.',

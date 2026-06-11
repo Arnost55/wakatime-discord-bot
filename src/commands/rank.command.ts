@@ -6,6 +6,12 @@ import { defaultEmbed, errorEmbed, loadingEmbed } from '../utils/embeds';
 import { StatsResponse } from '../types/wakatime/stats.types';
 import { MessageFlags, AttachmentBuilder } from 'discord.js';
 
+/**
+ * Server-wide leaderboard ranking all registered users by total coding time.
+ * Fetches stats for every user and displays a ranked list with a pie chart.
+ *
+ * @see https://wakatime.com/developers#stats
+ */
 export default new Command({
     name: 'rank',
     description: 'Rank all registered users by total coding time.',

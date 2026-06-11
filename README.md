@@ -5,6 +5,9 @@ A Discord bot that integrates with the [WakaTime API](https://wakatime.com/devel
 ## Features
 
 - **WakaTime OAuth2 Authorization** — Authenticate users via the official WakaTime OAuth flow
+- **Profile & Charts** — View coding profiles with rich pie/bar charts rendered via QuickChart (`/profile`, `/project`)
+- **Server Leaderboard** — Rank all registered users by total coding time with a chart (`/rank`)
+- **Language Analytics** — Server-wide top languages and per-language breakdown (`/toplangs`, `/languagestats`)
 - **Coding Stats** — View total time logged since account creation (`/all-time-since-today`)
 - **Secure Token Storage** — Access and refresh tokens are encrypted at rest using libsodium (NaCl) with Argon2id key derivation
 - **Self-hosted OAuth API** — Built-in Express server handles the OAuth redirect callback
@@ -15,8 +18,13 @@ A Discord bot that integrates with the [WakaTime API](https://wakatime.com/devel
 
 | Command                    | Description                                                |
 |----------------------------|------------------------------------------------------------|
-| `/all-time-since-today`    | Get total time logged on WakaTime since account creation.  |
 | `/authorize`               | Authorize this app through the official WakaTime website.  |
+| `/profile [user]`          | View coding profile with language pie chart for yourself or another user. |
+| `/rank`                    | Rank all registered users by total coding time (server leaderboard with chart). |
+| `/toplangs`                | Show the top programming languages across all registered users. |
+| `/languagestats <language>`| Get stats for a specific programming language across all users. |
+| `/project <user>`          | Get project breakdown for a user with a pie chart.         |
+| `/all-time-since-today`    | Get total time logged on WakaTime since account creation.  |
 | `/revoke`                  | Learn how to revoke WakaTime authorization.                |
 | `/help`                    | Display help information about the bot.                    |
 
@@ -102,28 +110,33 @@ Copy `.env.example` to `.env` and fill in the values:
 ┌─────────────────┐       ┌──────────────────────┐       ┌─────────────────┐
 │   Discord API   │◄─────►│   Discord Bot (src)   │──────►│   WakaTime API  │
 └─────────────────┘       │                       │       └─────────────────┘
-                          │  ┌─────────────────┐  │              ▲
-                          │  │  Slash Commands  │  │              │
-                          │  │  • all-time-     │  │   OAuth2     │
-                          │  │    since-today   │  │   Bearer     │
-                          │  │  • authorize     │  │   Token      │
-                          │  │  • revoke        │  │              │
-                          │  │  • help          │  │              │
-                          │  └────────┬────────┘  │              │
-                          │           │            │              │
-                          │  ┌────────▼────────┐  │              │
-                          │  │   Event System  │  │              │
-                          │  │  • interaction  │  │              │
-                          │  │    Create       │  │              │
-                          │  │  • ready        │  │              │
-                          │  └─────────────────┘  │              │
-                          └───────────────────────┘              │
-                                      │                          │
-                                      ▼                          │
-                          ┌──────────────────────┐               │
-                          │  Express OAuth API   │───────────────┘
-                          │  POST /redirect      │  Exchanges auth
-                          │                      │  code for tokens
+                            │  ┌─────────────────┐  │              ▲
+                            │  │  Slash Commands  │  │              │
+                            │  │  • profile       │  │   OAuth2     │
+                            │  │  • rank          │  │   Bearer     │
+                            │  │  • toplangs      │  │   Token      │
+                            │  │  • languagestats │  │              │
+                            │  │  • project       │  │              │
+                            │  │  • all-time-     │  │              │
+                            │  │    since-today   │  │              │
+                            │  │  • authorize     │  │              │
+                            │  │  • revoke        │  │              │
+                            │  │  • help          │  │              │
+                            │  └────────┬────────┘  │              │
+                           │           │            │              │
+                           │  ┌────────▼────────┐  │              │
+                           │  │   Event System  │  │              │
+                           │  │  • interaction  │  │              │
+                           │  │    Create       │  │              │
+                           │  │  • ready        │  │              │
+                           │  └─────────────────┘  │              │
+                           └───────────────────────┘              │
+                                       │                          │
+                                       ▼                          │
+                           ┌──────────────────────┐               │
+                           │  Express OAuth API   │───────────────┘
+                           │  GET /redirect       │  Exchanges auth
+                           │                      │  code for tokens
                           └──────────────────────┘
                                       │
                                       ▼
@@ -145,8 +158,8 @@ Copy `.env.example` to `.env` and fill in the values:
 | `src/api/`            | Express OAuth redirect server                    |
 | `src/wakatime/`       | WakaTime API client and HTTP response codes      |
 | `src/db/`             | Prisma database client and user model            |
-| `src/utils/`          | Crypto (libsodium encryption) and embed helpers  |
-| `src/types/`          | TypeScript type definitions                      |
+| `src/utils/`          | Crypto (libsodium encryption), embed helpers, and chart generation (QuickChart) |
+| `src/types/`          | TypeScript type definitions (WakaTime API models, core types) |
 | `prisma/`             | Prisma schema and migrations                     |
 
 ## Scripts
@@ -167,6 +180,8 @@ Copy `.env.example` to `.env` and fill in the values:
 - **Database:** PostgreSQL + [Prisma ORM](https://www.prisma.io/)
 - **OAuth API:** [Express](https://expressjs.com/)
 - **Encryption:** [libsodium-wrappers-sumo](https://github.com/jedisct1/libsodium.js) (NaCl secretbox + Argon2id key derivation)
+- **Charts:** [QuickChart](https://quickchart.io/) (pie and bar charts via `quickchart-js`)
+- **Color Utility:** [color-util-nodejs](https://www.npmjs.com/package/color-util-nodejs)
 - **HTTP Client:** [Axios](https://axios-http.com/)
 - **Logging:** [tslog](https://tslog.js.org/)
 

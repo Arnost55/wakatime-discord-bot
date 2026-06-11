@@ -6,6 +6,12 @@ import { defaultEmbed, errorEmbed, loadingEmbed } from '../utils/embeds';
 import { StatsResponse } from '../types/wakatime/stats.types';
 import { MessageFlags, AttachmentBuilder } from 'discord.js';
 
+/**
+ * Aggregate and display the top programming languages across all registered users.
+ * Renders a stacked bar chart comparing language usage per user.
+ *
+ * @see https://wakatime.com/developers#stats
+ */
 export default new Command({
     name: 'toplangs',
     description: 'Get the top languages across all registered users on the server.',

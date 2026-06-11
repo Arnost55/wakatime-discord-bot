@@ -6,6 +6,12 @@ import { defaultEmbed, errorEmbed, loadingEmbed } from '../utils/embeds';
 import { StatsResponse } from '../types/wakatime/stats.types';
 import { MessageFlags, AttachmentBuilder } from 'discord.js';
 
+/**
+ * View a detailed coding profile for yourself or another user.
+ * Fetches stats from the WakaTime API and renders a language pie chart.
+ *
+ * @see https://wakatime.com/developers#stats
+ */
 export default new Command({
     name: 'profile',
     description: 'Get detailed profile for a WakaTime user with language pie chart.',

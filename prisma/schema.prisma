@@ -13,4 +13,23 @@ model User {
   refreshToken String
   userId       String  @unique
   wakaUsername String?
+  wakaUserId   String?
+}
+
+model DigestConfig {
+  id          Int    @id @default(autoincrement())
+  guildId     String @unique
+  channelId   String
+  time        String
+  timezone    String @default("UTC")
+  enabled     Boolean @default(true)
+}
+
+model GoalRole {
+  id          Int    @id @default(autoincrement())
+  guildId     String
+  roleId      String
+  targetHours Int
+  range       String @default("all_time")
+  @@unique([guildId, range, targetHours])
 }

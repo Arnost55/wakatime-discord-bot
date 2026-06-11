@@ -1,0 +1,57 @@
+{
+  "version": "6.19",
+  "steps": [
+    {
+      "tag": "CreateMigration",
+      "migration": {
+        "migrations": [
+          {
+            "tag": "AlterTable",
+            "table": "User",
+            "operations": [
+              {
+                "tag": "AddColumn",
+                "column": {
+                  "name": "wakaUserId",
+                  "type": "Text",
+                  "optional": true
+                }
+              }
+            ]
+          },
+          {
+            "tag": "CreateTable",
+            "table": "DigestConfig",
+            "columns": [
+              { "name": "id", "type": "Serial", "default": { "name": "autoincrement" } },
+              { "name": "guildId", "type": "Text" },
+              { "name": "channelId", "type": "Text" },
+              { "name": "time", "type": "Text" },
+              { "name": "timezone", "type": "Text", "default": "'UTC'" },
+              { "name": "enabled", "type": "Boolean", "default": true }
+            ],
+            "uniqueConstraints": [
+              { "name": "DigestConfig_guildId_key", "columns": ["guildId"] }
+            ],
+            "primaryKey": { "name": "DigestConfig_pkey", "columns": ["id"] }
+          },
+          {
+            "tag": "CreateTable",
+            "table": "GoalRole",
+            "columns": [
+              { "name": "id", "type": "Serial", "default": { "name": "autoincrement" } },
+              { "name": "guildId", "type": "Text" },
+              { "name": "roleId", "type": "Text" },
+              { "name": "targetHours", "type": "Int" },
+              { "name": "range", "type": "Text", "default": "'all_time'" }
+            ],
+            "uniqueConstraints": [
+              { "name": "GoalRole_guildId_range_targetHours_key", "columns": ["guildId", "range", "targetHours"] }
+            ],
+            "primaryKey": { "name": "GoalRole_pkey", "columns": ["id"] }
+          }
+        ]
+      }
+    }
+  ]
+}

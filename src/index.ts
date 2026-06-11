@@ -4,6 +4,7 @@ import sodium from 'libsodium-wrappers-sumo';
 import { ExtendedClient } from './structure/Client';
 import { generateKeyPair } from './utils/crypto';
 import { Logger } from 'tslog';
+import { startDigestScheduler } from './services/digest';
 
 dotenv.config();
 
@@ -16,4 +17,5 @@ let keys: sodium.KeyPair;
 sodium.ready.then(() => {
     keys = generateKeyPair();
 });
+startDigestScheduler();
 export { keys };

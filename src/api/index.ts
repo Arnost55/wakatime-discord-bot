@@ -39,13 +39,15 @@ app.get('/redirect', async (req, res) => {
         );
 
         let wakaUsername: string | undefined;
+        let wakaUserId: string | undefined;
         try {
             const userResponse = await axios(`${process.env.WAKATIME_BASE_URL || 'https://wakatime.com'}/api/v1/users/current`, {
                 headers: { Authorization: `Bearer ${access_token}` },
             });
-            wakaUsername = userResponse.data?.data?.username || userResponse.data?.data?.id;
+            wakaUsername = userResponse.data?.data?.username;
+            wakaUserId = userResponse.data?.data?.id;
         } catch {
-            console.log('Failed to fetch WakaTime username');
+            console.log('Failed to fetch WakaTime user info');
         }
 
         const userExists = await isUser(userId);
@@ -55,6 +57,7 @@ app.get('/redirect', async (req, res) => {
                 accessToken: formatNonceAndChiperText(accessTokenNonce, accessTokenChiperText),
                 refreshToken: formatNonceAndChiperText(refreshTokenNonce, refreshTokenChiperText),
                 wakaUsername,
+                wakaUserId,
             });
         } else {
             await saveUser({
@@ -62,6 +65,7 @@ app.get('/redirect', async (req, res) => {
                 accessToken: formatNonceAndChiperText(accessTokenNonce, accessTokenChiperText),
                 refreshToken: formatNonceAndChiperText(refreshTokenNonce, refreshTokenChiperText),
                 wakaUsername,
+                wakaUserId,
             });
         }
 

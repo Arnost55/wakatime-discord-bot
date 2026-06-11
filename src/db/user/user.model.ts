@@ -6,13 +6,14 @@ import { UserDto } from './user.dto';
  *
  * @param UserDto The user to be saved.
  */
-export async function saveUser({ userId, accessToken, refreshToken, wakaUsername }: UserDto) {
+export async function saveUser({ userId, accessToken, refreshToken, wakaUsername, wakaUserId }: UserDto) {
     await prismaClient.user.create({
         data: {
             userId: userId,
             accessToken: accessToken,
             refreshToken: refreshToken,
             wakaUsername: wakaUsername,
+            wakaUserId: wakaUserId,
         },
     });
 }
@@ -22,7 +23,7 @@ export async function saveUser({ userId, accessToken, refreshToken, wakaUsername
  * 
  * @param UserDto The user to be updated.
  */
-export async function updateUser({ userId, accessToken, refreshToken, wakaUsername }: UserDto) {
+export async function updateUser({ userId, accessToken, refreshToken, wakaUsername, wakaUserId }: UserDto) {
     await prismaClient.user.update({
         where: {
             userId: userId,
@@ -31,6 +32,7 @@ export async function updateUser({ userId, accessToken, refreshToken, wakaUserna
             accessToken: accessToken,
             refreshToken: refreshToken,
             wakaUsername: wakaUsername,
+            wakaUserId: wakaUserId,
         },
     });
 }

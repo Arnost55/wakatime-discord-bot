@@ -1,17 +1,19 @@
 import { Command } from '../structure/Command';
 import axios from 'axios';
-import { getUserById, getAllUsers } from '../db/user/user.model';
+import { getUserById } from '../db/user/user.model';
 import { generatePieChart } from '../utils/graphs';
 import { defaultEmbed, errorEmbed, loadingEmbed } from '../utils/embeds';
 import { StatsResponse } from '../types/wakatime/stats.types';
 import { MessageFlags, AttachmentBuilder } from 'discord.js';
 
-/**
- * View a detailed coding profile for yourself or another user.
- * Fetches stats from the WakaTime API and renders a language pie chart.
- *
- * @see https://wakatime.com/developers#stats
- */
+const RANGE_CHOICES = [
+    { name: 'Last 7 Days', value: 'last_7_days' },
+    { name: 'Last 30 Days', value: 'last_30_days' },
+    { name: 'Last 6 Months', value: 'last_6_months' },
+    { name: 'Last Year', value: 'last_year' },
+    { name: 'All Time', value: 'all_time' },
+];
+
 export default new Command({
     name: 'profile',
     description: 'Get detailed profile for a WakaTime user with language pie chart.',
@@ -22,9 +24,17 @@ export default new Command({
             type: 6,
             required: false,
         },
+        {
+            name: 'range',
+            description: 'Time range for the stats.',
+            type: 3,
+            required: false,
+            choices: RANGE_CHOICES,
+        },
     ],
     run: async ({ interaction, args }) => {
         const targetUser = args.getUser('user') || interaction.user;
+        const range = args.getString('range') || 'last_7_days';
         const dbUser = await getUserById(targetUser.id);
         const wakaUsername = dbUser?.wakaUsername;
 
@@ -42,7 +52,7 @@ export default new Command({
 
         try {
             const baseUrl = process.env.WAKATIME_BASE_URL || 'https://wakatime.com';
-            const response = await axios<StatsResponse>(`${baseUrl}/api/v1/users/${wakaUsername}/stats`);
+            const response = await axios<StatsResponse>(`${baseUrl}/api/v1/users/${wakaUsername}/stats/${range}`);
             const data = response.data.data;
 
             const fields = [
@@ -73,7 +83,7 @@ export default new Command({
             await interaction.editReply({
                 embeds: [
                     defaultEmbed()
-                        .setTitle(`${targetUser.username}'s Profile`)
+                        .setTitle(`${targetUser.username}'s Profile (${range.replace(/_/g, ' ')})`)
                         .setFields(fields)
                         .setImage('attachment://languages.png'),
                 ],

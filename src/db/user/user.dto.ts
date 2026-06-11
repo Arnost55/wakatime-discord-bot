@@ -3,4 +3,5 @@ export type UserDto = {
     accessToken: string;
     refreshToken: string;
     wakaUsername?: string;
+    wakaUserId?: string;
 };

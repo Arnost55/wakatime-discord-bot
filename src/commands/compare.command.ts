@@ -16,16 +16,16 @@ export default new Command({
             required: true,
         },
         {
-            name: 'account1',
-            description: 'Account name for user1 (defaults to their default).',
-            type: 3,
-            required: false,
-        },
-        {
             name: 'user2',
             description: 'Second user to compare.',
             type: 6,
             required: true,
+        },
+        {
+            name: 'account1',
+            description: 'Account name for user1 (defaults to their default).',
+            type: 3,
+            required: false,
         },
         {
             name: 'account2',

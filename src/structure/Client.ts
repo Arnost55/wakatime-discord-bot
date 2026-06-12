@@ -1,4 +1,4 @@
-import { ApplicationCommandDataResolvable, Client, Collection } from 'discord.js';
+import { ApplicationCommandDataResolvable, Client, Collection, GatewayIntentBits } from 'discord.js';
 import { glob } from 'glob';
 import { RegisterCommandsOptions } from '../types/core/Client';
 import { logger } from '..';
@@ -14,7 +14,7 @@ export class ExtendedClient extends Client {
     commands: Collection<string, CommandType> = new Collection();
 
     constructor() {
-        super({ intents: 32767 });
+        super({ intents: [GatewayIntentBits.Guilds] });
     }
 
     /**

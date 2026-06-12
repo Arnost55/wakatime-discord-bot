@@ -20,8 +20,8 @@ export class ExtendedClient extends Client {
     /**
      * Starts the client.
      */
-    start() {
-        this.registerModules();
+    async start() {
+        await this.registerModules();
         this.login(process.env.BOT_TOKEN);
     }
 
@@ -56,29 +56,32 @@ export class ExtendedClient extends Client {
      * Registers modules. (Commands and Events)
      */
     async registerModules() {
-        // Commands
         const slashCommands: ApplicationCommandDataResolvable[] = [];
-        const commandFiles = await glob('src/commands/**/*{.ts,.js}');
-        commandFiles.map(async (filePath) => {
-            const command: CommandType = await this.importFile(path.join(__dirname, '..', '..', filePath));
-            if (!command.name) return;
+
+        // Commands
+        const commandsDir = path.join(__dirname, '..', 'commands');
+        const commandFiles = await glob(`${commandsDir}/**/*.{ts,js}`);
+        for (const filePath of commandFiles) {
+            const command: CommandType = await this.importFile(filePath);
+            if (!command.name) continue;
             logger.info(`Registering command ${command.name}...`);
 
             this.commands.set(command.name, command);
             slashCommands.push(command);
-        });
+        }
 
         this.on('clientReady', () => {
             this.registerCommands({ commands: slashCommands, guildId: process.env.GUILD_ID });
         });
 
         // Events
-        const eventFiles = await glob('src/events/**/*{.ts,.js}');
-        eventFiles.map(async (filePath) => {
-            const event = await this.importFile(path.join(__dirname, '..', '..', filePath));
+        const eventsDir = path.join(__dirname, '..', 'events');
+        const eventFiles = await glob(`${eventsDir}/**/*.{ts,js}`);
+        for (const filePath of eventFiles) {
+            const event = await this.importFile(filePath);
             logger.info(`Registering event ${event.name}...`);
 
             this.on(event.name, event.run);
-        });
+        }
     }
 }

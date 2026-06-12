@@ -7,11 +7,21 @@ import { StatsResponse } from '../types/wakatime/stats.types';
 
 const scheduledJobs: cron.ScheduledTask[] = [];
 
+/**
+ * Convert a 24h time string ("HH:MM") to a cron expression.
+ * @param time - Time in 24h format (e.g. "09:00").
+ * @returns A cron expression (e.g. "0 9 * * *").
+ */
 function parseCron(time: string): string {
     const [hour, minute] = time.split(':');
     return `${minute} ${hour} * * *`;
 }
 
+/**
+ * Build and send a daily coding digest embed to a configured channel.
+ * Fetches stats for all registered users, sorts by total time, and
+ * posts a ranked leaderboard with top-3 language breakdowns.
+ */
 async function sendDigest(config: { guildId: string; channelId: string; time: string; timezone: string }) {
     const guild = client.guilds.cache.get(config.guildId);
     if (!guild) return;
@@ -76,6 +86,10 @@ async function sendDigest(config: { guildId: string; channelId: string; time: st
     await channel.send({ embeds: [embed] });
 }
 
+/**
+ * Start all active digest schedules from the database.
+ * Reads every enabled DigestConfig and registers a cron job for it.
+ */
 export async function startDigestScheduler() {
     const configs = await prismaClient.digestConfig.findMany({ where: { enabled: true } });
 
@@ -91,6 +105,10 @@ export async function startDigestScheduler() {
     }
 }
 
+/**
+ * Stop all running digest schedulers and reload from the database.
+ * Called after a /digest configuration change to apply the new settings immediately.
+ */
 export async function reloadDigestScheduler() {
     for (const job of scheduledJobs) {
         job.stop();

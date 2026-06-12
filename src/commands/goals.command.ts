@@ -1,3 +1,11 @@
+/**
+ * View WakaTime goals and progress for the calling user.
+ * Fetches goals from the WakaTime Goals API and renders
+ * each enabled goal with a visual progress bar and date range.
+ *
+ * @see https://wakatime.com/developers#goals
+ */
+
 import { Command } from '../structure/Command';
 import axios from 'axios';
 import { getUserById } from '../db/user/user.model';
@@ -51,11 +59,7 @@ export default new Command({
                 });
 
             await interaction.editReply({
-                embeds: [
-                    defaultEmbed()
-                        .setTitle('🎯 WakaTime Goals')
-                        .setFields(fields),
-                ],
+                embeds: [defaultEmbed().setTitle('🎯 WakaTime Goals').setFields(fields)],
             });
         } catch {
             await interaction.editReply({
@@ -65,6 +69,12 @@ export default new Command({
     },
 });
 
+/**
+ * Generate a text-based progress bar string.
+ * @param percent - Completion percentage (0–100).
+ * @param length  - Number of characters in the bar.
+ * @returns A string of filled (█) and empty (░) blocks.
+ */
 function generateProgressBar(percent: number, length: number): string {
     const filled = Math.round((percent / 100) * length);
     const empty = length - filled;

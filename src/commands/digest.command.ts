@@ -1,3 +1,12 @@
+/**
+ * Configure the daily coding digest for a server.
+ * Sets up or disables a scheduled message that posts a daily summary
+ * of all registered users' coding activity to a specified channel.
+ * Requires the "Manage Server" permission.
+ *
+ * @see src/services/digest.ts for the scheduler implementation
+ */
+
 import { Command } from '../structure/Command';
 import { prismaClient } from '../db/prisma';
 import { defaultEmbed, errorEmbed } from '../utils/embeds';
@@ -53,7 +62,9 @@ export default new Command({
             await prismaClient.digestConfig.deleteMany({ where: { guildId } });
             await reloadDigestScheduler();
             return interaction.reply({
-                embeds: [defaultEmbed().setTitle('Digest Disabled').setDescription('Daily digest has been turned off.')],
+                embeds: [
+                    defaultEmbed().setTitle('Digest Disabled').setDescription('Daily digest has been turned off.'),
+                ],
                 flags: MessageFlags.Ephemeral,
             });
         }

@@ -1,3 +1,11 @@
+/**
+ * Compare coding stats between two users side-by-side.
+ * Fetches stats for both users from the WakaTime API and displays
+ * total time, daily average, and per-language percentage comparison.
+ *
+ * @see https://wakatime.com/developers#stats
+ */
+
 import { Command } from '../structure/Command';
 import axios from 'axios';
 import { getUserById } from '../db/user/user.model';
@@ -30,8 +38,12 @@ export default new Command({
 
         if (!db1?.wakaUsername || !db2?.wakaUsername) {
             return interaction.reply({
-                embeds: [errorEmbed('Not Registered',
-                    `${!db1?.wakaUsername ? user1.username : user2.username} hasn't authorized yet.`)],
+                embeds: [
+                    errorEmbed(
+                        'Not Registered',
+                        `${!db1?.wakaUsername ? user1.username : user2.username} hasn't authorized yet.`,
+                    ),
+                ],
                 flags: MessageFlags.Ephemeral,
             });
         }

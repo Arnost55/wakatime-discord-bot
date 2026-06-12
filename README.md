@@ -4,36 +4,42 @@ A Discord bot that integrates with the [WakaTime API](https://wakatime.com/devel
 
 ## Features
 
-- **WakaTime OAuth2 Authorization** — Authenticate users via the official WakaTime OAuth flow
+- **Multi-Instance Account Management** — Link multiple WakaTime-compatible API accounts (official WakaTime, Hakatime, Wakapi, or any custom fork) via `/account`
+- **WakaTime OAuth2 Authorization** — Authenticate users via the official WakaTime OAuth flow, with support for custom fork URLs
+- **Fork Name Resolution** — Use short names like `hakatime` instead of full URLs; configure custom forks via `WAKATIME_FORK_*` environment variables
 - **Profile & Charts** — View coding profiles with rich pie/bar charts rendered via QuickChart (`/profile`, `/project`)
-- **Server Leaderboard** — Rank all registered users by total coding time with paginated charts (`/rank`)
-- **User Comparison** — Compare coding stats between two users side-by-side (`/compare`)
-- **Language Analytics** — Server-wide top languages and per-language breakdown (`/toplangs`, `/languagestats`)
-- **Goals Tracking** — View your WakaTime goals with progress bars (`/goals`)
+- **Server Leaderboard** — Rank all registered users by total coding time with paginated charts, filterable by API instance (`/rank`)
+- **Cross-Instance Comparison** — Compare coding stats between two users across different API instances (`/compare`)
+- **Language Analytics** — Server-wide top languages and per-language breakdown, filterable by instance (`/toplangs`, `/languagestats`)
+- **Goals Tracking** — View your WakaTime goals with progress bars across any linked account (`/goals`)
 - **Daily Digest** — Automatically post a daily coding digest to a configured channel (`/digest`)
 - **Time Ranges** — Most commands support customizable time ranges (7 days, 30 days, 6 months, year, all time)
 - **Coding Stats** — View total time logged since account creation (`/all-time-since-today`)
 - **Secure Token Storage** — Access and refresh tokens are encrypted at rest using libsodium (NaCl) with Argon2id key derivation
 - **Self-hosted OAuth API** — Built-in Express server handles the OAuth redirect callback
 - **Docker Support** — Ready-to-use Dockerfile and docker-compose for containerized deployment
-- **Database Migrations** — Prisma ORM with PostgreSQL for user token persistence
+- **Database Migrations** — Prisma ORM with PostgreSQL for user and multi-account token persistence
 
 ## Slash Commands
 
-| Command                                         | Description                                                                                        |
-| ----------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `/authorize`                                    | Authorize this app through the official WakaTime website.                                          |
-| `/profile [user] [range]`                       | View coding profile with language pie chart. Supports time range selection (7d, 30d, 6m, 1y, all). |
-| `/rank [range]`                                 | Rank all registered users by total coding time with a paginated leaderboard and chart.             |
-| `/compare <user1> <user2>`                      | Compare coding stats between two users side-by-side.                                               |
-| `/toplangs`                                     | Show the top programming languages across all registered users (stacked bar chart).                |
-| `/languagestats <language>`                     | Get stats for a specific programming language across all users.                                    |
-| `/project <user>`                               | Get project breakdown for a user with a pie chart.                                                 |
-| `/goals`                                        | View your WakaTime goals and progress with visual bars.                                            |
-| `/digest <channel> <time> [timezone] [disable]` | Configure the daily coding digest for this server (requires Manage Server permission).             |
-| `/all-time-since-today`                         | Get total time logged on WakaTime since account creation.                                          |
-| `/revoke`                                       | Learn how to revoke WakaTime authorization.                                                        |
-| `/help`                                         | Display help information about the bot.                                                            |
+| Command                                                        | Description                                                                                           |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `/authorize [name] [url]`                                      | Link a WakaTime account with an optional name and custom fork/base URL.                               |
+| `/account add <name> [url]`                                    | Add a new WakaTime API account (supports fork names and custom URLs).                                 |
+| `/account list`                                                | List all your linked accounts with their API base URLs.                                               |
+| `/account remove <name>`                                       | Remove a linked account.                                                                              |
+| `/account default <name>`                                      | Set a default account for commands that don't specify one.                                            |
+| `/profile [user] [account] [range]`                            | View coding profile with language pie chart. Supports time range & account selection.                 |
+| `/rank [instance] [range]`                                     | Rank all registered users by total coding time with paginated chart. Optionally filter by API instance. |
+| `/compare <user1> <user2> [account1] [account2]`                | Compare coding stats between two users side-by-side (cross-instance supported).                       |
+| `/toplangs [instance]`                                         | Show the top programming languages across all registered users (stacked bar chart, filterable).       |
+| `/languagestats <language> [instance]`                         | Get stats for a specific programming language across all users (optional instance filter).            |
+| `/project <user> [account]`                                    | Get project breakdown for a user with a pie chart (account-aware).                                    |
+| `/goals [account]`                                             | View your WakaTime goals and progress with visual bars for any linked account.                        |
+| `/digest <channel> <time> [timezone] [disable]`                | Configure the daily coding digest for this server (requires Manage Server permission).                |
+| `/all-time-since-today`                                        | Get total time logged on WakaTime since account creation.                                             |
+| `/revoke`                                                      | Learn how to revoke WakaTime authorization.                                                            |
+| `/help`                                                        | Display help information about the bot.                                                               |
 
 ## Setup
 
@@ -112,6 +118,7 @@ Copy `.env.example` to `.env` and fill in the values:
 | `CLIENT_ID`         | Yes      | Your WakaTime OAuth App client ID (from [WakaTime Apps](https://wakatime.com/apps)).                                                                                     |
 | `CLIENT_SECRET`     | Yes      | Your WakaTime OAuth App client secret.                                                                                                                                   |
 | `WAKATIME_BASE_URL` | No       | Base URL for the WakaTime API (default: `https://wakatime.com`). Useful for self-hosted WakaTime-compatible instances like [Hakatime](https://github.com/mujx/hakatime). |
+| `WAKATIME_FORK_*`   | No       | Define custom fork names as `WAKATIME_FORK_<NAME>=<URL>` (e.g., `WAKATIME_FORK_HAKATIME=https://hakatime.example.com`). Users can then use the short name in `/authorize` and `/account add`. |
 | `CRYPTO_PASSWORD`   | Yes      | Password used to derive encryption keys via Argon2id for token storage. Choose a strong, random password.                                                                |
 
 > **\*** `GUILD_ID` is required if you want the bot to work in a specific server. Remove it from `.env` to register commands globally (may take up to 1 hour to propagate).
@@ -122,21 +129,23 @@ Copy `.env.example` to `.env` and fill in the values:
 ┌─────────────────┐       ┌───────────────────────────┐       ┌─────────────────┐
 │   Discord API   │◄─────►│     Discord Bot (src)      │──────►│   WakaTime API  │
 └─────────────────┘       │                           │       └─────────────────┘
-                           │  ┌─────────────────────┐  │              ▲
-                           │  │    Slash Commands    │  │              │
-                           │  │  • profile [range]   │  │   OAuth2     │
-                           │  │  • rank [range]      │  │   Bearer     │
-                           │  │  • compare u1 u2     │  │   Token      │
-                           │  │  • toplangs          │  │              │
-                           │  │  • languagestats     │  │              │
-                           │  │  • project           │  │              │
-                           │  │  • goals             │  │              │
-                           │  │  • digest            │  │              │
-                           │  │  • all-time-since-   │  │              │
-                           │  │    today             │  │              │
-                           │  │  • authorize         │  │              │
-                           │  │  • revoke            │  │              │
-                           │  │  • help              │  │              │
+                            │  ┌─────────────────────┐  │              ▲
+                            │  │    Slash Commands    │  │              │
+                            │  │  • account add/list  │  │   OAuth2     │
+                            │  │    /remove/default   │  │   Bearer     │
+                            │  │  • profile [account] │  │   Token      │
+                            │  │  • rank [instance]   │  │              │
+                            │  │  • compare u1 u2     │  │              │
+                            │  │  • toplangs[instance]│  │              │
+                            │  │  • languagestats     │  │              │
+                            │  │  • project [account] │  │              │
+                            │  │  • goals [account]   │  │              │
+                            │  │  • digest            │  │              │
+                            │  │  • all-time-since-   │  │              │
+                            │  │    today             │  │              │
+                            │  │  • authorize [name]  │  │              │
+                            │  │  • revoke            │  │              │
+                            │  │  • help              │  │              │
                            │  └──────────┬──────────┘  │              │
                            │             │              │              │
                            │  ┌──────────▼──────────┐  │              │
@@ -161,30 +170,35 @@ Copy `.env.example` to `.env` and fill in the values:
                            └──────────────────────────┘
                                        │
                                        ▼
-                           ┌──────────────────────────┐
-                           │   PostgreSQL (Prisma)     │
-                           │   • User (encrypted      │
-                           │     tokens)               │
-                           │   • DigestConfig          │
-                           │   • GoalRole              │
-                           └──────────────────────────┘
+                            ┌───────────────────────────┐
+                            │     PostgreSQL (Prisma)    │
+                            │   • User (encrypted       │
+                            │     tokens)                │
+                            │   • WakaAccount (multi-   │
+                            │     instance accounts)    │
+                            │   • DigestConfig           │
+                            │   • GoalRole               │
+                            └───────────────────────────┘
 ```
 
 ### Key Directories
 
-| Path             | Description                                                                     |
-| ---------------- | ------------------------------------------------------------------------------- |
-| `src/index.ts`   | Application entry point — initializes bot, API, crypto, digest scheduler        |
-| `src/structure/` | Core classes: `Client`, `Command`, `Event`                                      |
-| `src/commands/`  | Slash command implementations (12 commands)                                     |
-| `src/events/`    | Discord event handlers (`interactionCreate` with rank pagination, `ready`)      |
-| `src/api/`       | Express OAuth redirect server                                                   |
-| `src/services/`  | Background services (daily digest scheduler via node-cron)                      |
-| `src/wakatime/`  | WakaTime API client and HTTP response codes                                     |
-| `src/db/`        | Prisma database client and user model                                           |
-| `src/utils/`     | Crypto (libsodium encryption), embed helpers, and chart generation (QuickChart) |
-| `src/types/`     | TypeScript type definitions (WakaTime API models, core types, goals)            |
-| `prisma/`        | Prisma schema and migrations (`User`, `DigestConfig`, `GoalRole`)               |
+| Path               | Description                                                                                |
+| ------------------ | ------------------------------------------------------------------------------------------ |
+| `src/index.ts`     | Application entry point — initializes bot, API, crypto, digest scheduler, account migration|
+| `src/structure/`   | Core classes: `Client`, `Command`, `Event`                                                 |
+| `src/commands/`    | Slash command implementations (14 commands)                                                |
+| `src/commands/auth/` | Authorization subcommands (`authorize`)                                                    |
+| `src/events/`      | Discord event handlers (`interactionCreate` with rank pagination, `ready`)                 |
+| `src/api/`         | Express OAuth redirect server with multi-account state management                          |
+| `src/services/`    | Background services (daily digest scheduler via node-cron)                                 |
+| `src/wakatime/`    | WakaTime API client, stats fetcher, and time range definitions                             |
+| `src/db/`          | Prisma database client and models (`User`, `WakaAccount`, `DigestConfig`, `GoalRole`)       |
+| `src/db/account/`  | `WakaAccount` model, DTO, and CRUD operations for multi-instance accounts                  |
+| `src/db/user/`     | `User` model, DTO, and CRUD operations                                                     |
+| `src/utils/`       | Crypto (libsodium encryption), embed helpers, chart generation, account/fork resolution    |
+| `src/types/`       | TypeScript type definitions (WakaTime API models, core types, goals, stats)                |
+| `prisma/`          | Prisma schema and migrations (`User`, `WakaAccount`, `DigestConfig`, `GoalRole`)           |
 
 ## Scripts
 

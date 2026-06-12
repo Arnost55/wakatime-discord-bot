@@ -18,7 +18,10 @@
     "discord",
     "bot",
     "wakatime",
-    "typescript"
+    "hakatime",
+    "wakapi",
+    "typescript",
+    "coding-stats"
   ],
   "author": "fl4wless",
   "license": "MIT",

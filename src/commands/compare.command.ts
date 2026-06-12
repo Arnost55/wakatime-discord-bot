@@ -1,21 +1,13 @@
-/**
- * Compare coding stats between two users side-by-side.
- * Fetches stats for both users from the WakaTime API and displays
- * total time, daily average, and per-language percentage comparison.
- *
- * @see https://wakatime.com/developers#stats
- */
-
 import { Command } from '../structure/Command';
 import axios from 'axios';
-import { getUserById } from '../db/user/user.model';
+import { resolveAccount } from '../utils/resolve-account';
 import { defaultEmbed, errorEmbed, loadingEmbed } from '../utils/embeds';
 import { StatsResponse } from '../types/wakatime/stats.types';
 import { MessageFlags } from 'discord.js';
 
 export default new Command({
     name: 'compare',
-    description: 'Compare coding stats between two users.',
+    description: 'Compare coding stats between two users (cross-instance supported).',
     options: [
         {
             name: 'user1',
@@ -24,24 +16,39 @@ export default new Command({
             required: true,
         },
         {
+            name: 'account1',
+            description: 'Account name for user1 (defaults to their default).',
+            type: 3,
+            required: false,
+        },
+        {
             name: 'user2',
             description: 'Second user to compare.',
             type: 6,
             required: true,
         },
+        {
+            name: 'account2',
+            description: 'Account name for user2 (defaults to their default).',
+            type: 3,
+            required: false,
+        },
     ],
     run: async ({ interaction, args }) => {
         const user1 = args.getUser('user1', true);
         const user2 = args.getUser('user2', true);
-        const db1 = await getUserById(user1.id);
-        const db2 = await getUserById(user2.id);
+        const account1Name = args.getString('account1');
+        const account2Name = args.getString('account2');
 
-        if (!db1?.wakaUsername || !db2?.wakaUsername) {
+        const acc1 = await resolveAccount(user1.id, account1Name);
+        const acc2 = await resolveAccount(user2.id, account2Name);
+
+        if (!acc1?.wakaUsername || !acc2?.wakaUsername) {
             return interaction.reply({
                 embeds: [
                     errorEmbed(
                         'Not Registered',
-                        `${!db1?.wakaUsername ? user1.username : user2.username} hasn't authorized yet.`,
+                        `${!acc1?.wakaUsername ? user1.username : user2.username} has no account linked.`,
                     ),
                 ],
                 flags: MessageFlags.Ephemeral,
@@ -51,10 +58,9 @@ export default new Command({
         await interaction.reply({ embeds: [loadingEmbed()], flags: MessageFlags.Ephemeral });
 
         try {
-            const baseUrl = process.env.WAKATIME_BASE_URL || 'https://wakatime.com';
             const [r1, r2] = await Promise.all([
-                axios<StatsResponse>(`${baseUrl}/api/v1/users/${db1.wakaUsername}/stats`),
-                axios<StatsResponse>(`${baseUrl}/api/v1/users/${db2.wakaUsername}/stats`),
+                axios<StatsResponse>(`${acc1.apiBaseUrl}/api/v1/users/${acc1.wakaUsername}/stats`),
+                axios<StatsResponse>(`${acc2.apiBaseUrl}/api/v1/users/${acc2.wakaUsername}/stats`),
             ]);
 
             const d1 = r1.data.data;
@@ -76,12 +82,12 @@ export default new Command({
                 .setTitle('Compare Coding Stats')
                 .addFields(
                     {
-                        name: `${user1.username}`,
+                        name: `${user1.username} (${acc1.name} · ${acc1.apiBaseUrl})`,
                         value: `\`\`\`${d1.human_readable_total}\nDaily: ${d1.human_readable_daily_average}\`\`\``,
                         inline: true,
                     },
                     {
-                        name: `${user2.username}`,
+                        name: `${user2.username} (${acc2.name} · ${acc2.apiBaseUrl})`,
                         value: `\`\`\`${d2.human_readable_total}\nDaily: ${d2.human_readable_daily_average}\`\`\``,
                         inline: true,
                     },

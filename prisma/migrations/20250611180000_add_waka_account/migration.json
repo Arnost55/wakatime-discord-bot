@@ -1,0 +1,44 @@
+{
+  "version": "6.19",
+  "steps": [
+    {
+      "tag": "CreateMigration",
+      "migration": {
+        "migrations": [
+          {
+            "tag": "AlterTable",
+            "table": "User",
+            "operations": [
+              {
+                "tag": "AddColumn",
+                "column": {
+                  "name": "defaultAccount",
+                  "type": "Text",
+                  "optional": true
+                }
+              }
+            ]
+          },
+          {
+            "tag": "CreateTable",
+            "table": "WakaAccount",
+            "columns": [
+              { "name": "id", "type": "Serial", "default": { "name": "autoincrement" } },
+              { "name": "userId", "type": "Text" },
+              { "name": "name", "type": "Text" },
+              { "name": "apiBaseUrl", "type": "Text" },
+              { "name": "accessToken", "type": "Text" },
+              { "name": "refreshToken", "type": "Text" },
+              { "name": "wakaUsername", "type": "Text", "optional": true },
+              { "name": "wakaUserId", "type": "Text", "optional": true }
+            ],
+            "uniqueConstraints": [
+              { "name": "WakaAccount_userId_name_key", "columns": ["userId", "name"] }
+            ],
+            "primaryKey": { "name": "WakaAccount_pkey", "columns": ["id"] }
+          }
+        ]
+      }
+    }
+  ]
+}

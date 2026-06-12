@@ -1,26 +1,32 @@
 import { Command } from '../structure/Command';
 import axios from 'axios';
-import { getAllUsers } from '../db/user/user.model';
+import { prismaClient } from '../db/prisma';
 import { generateBarChart } from '../utils/graphs';
 import { defaultEmbed, errorEmbed, loadingEmbed } from '../utils/embeds';
 import { StatsResponse } from '../types/wakatime/stats.types';
 import { MessageFlags, AttachmentBuilder } from 'discord.js';
 
-/**
- * Aggregate and display the top programming languages across all registered users.
- * Renders a stacked bar chart comparing language usage per user.
- *
- * @see https://wakatime.com/developers#stats
- */
 export default new Command({
     name: 'toplangs',
-    description: 'Get the top languages across all registered users on the server.',
-    run: async ({ interaction }) => {
-        const users = await getAllUsers();
+    description: 'Get the top languages across all registered accounts.',
+    options: [
+        {
+            name: 'instance',
+            description: 'API base URL to filter by (optional).',
+            type: 3,
+            required: false,
+        },
+    ],
+    run: async ({ interaction, args }) => {
+        const instanceFilter = args.getString('instance');
 
-        if (users.length === 0) {
+        const accounts = instanceFilter
+            ? await prismaClient.wakaAccount.findMany({ where: { apiBaseUrl: instanceFilter, wakaUsername: { not: null } } })
+            : await prismaClient.wakaAccount.findMany({ where: { wakaUsername: { not: null } } });
+
+        if (accounts.length === 0) {
             return interaction.reply({
-                embeds: [errorEmbed('No Users', 'No users are registered yet.')],
+                embeds: [errorEmbed('No Users', 'No accounts found.')],
                 flags: MessageFlags.Ephemeral,
             });
         }
@@ -28,11 +34,10 @@ export default new Command({
         await interaction.reply({ embeds: [loadingEmbed()], flags: MessageFlags.Ephemeral });
 
         try {
-            const baseUrl = process.env.WAKATIME_BASE_URL || 'https://wakatime.com';
             const statsResults = await Promise.allSettled(
-                users.map((u) =>
-                    axios<StatsResponse>(`${baseUrl}/api/v1/users/${u.wakaUsername}/stats`).then((r) => ({
-                        username: u.wakaUsername!,
+                accounts.map((a) =>
+                    axios<StatsResponse>(`${a.apiBaseUrl}/api/v1/users/${a.wakaUsername}/stats`).then((r) => ({
+                        username: `${a.wakaUsername} (${a.name})`,
                         data: r.data.data,
                     })),
                 ),

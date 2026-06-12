@@ -6,15 +6,33 @@ import { userStates } from '../../api';
 import { defaultEmbed } from '../../utils/embeds';
 import { MessageFlags } from "discord.js";
 
-/**
- * This command is used to authenticate the user through the official WakaTime website.
- */
 export default new Command({
     name: 'authorize',
-    description: 'Authorize this app through the official WakaTime website.',
-    run: async ({ interaction }) => {
+    description: 'Authorize this app through a WakaTime-compatible API.',
+    options: [
+        {
+            name: 'name',
+            description: 'Name for this account (default: "default").',
+            type: 3,
+            required: false,
+        },
+        {
+            name: 'url',
+            description: 'Custom API base URL (default: WAKATIME_BASE_URL env).',
+            type: 3,
+            required: false,
+        },
+    ],
+    run: async ({ interaction, args }) => {
+        const accountName = args.getString('name') || 'default';
+        const apiBaseUrl = args.getString('url') || process.env.WAKATIME_BASE_URL || 'https://wakatime.com';
+
         const state = sodium.randombytes_buf(32, 'hex');
-        userStates.set(state, interaction.user.id);
+        userStates.set(state, {
+            discordUserId: interaction.user.id,
+            apiBaseUrl,
+            accountName,
+        });
 
         const authorizeQueryParams = {
             client_id: process.env.CLIENT_ID,
@@ -26,13 +44,13 @@ export default new Command({
 
         const embed = defaultEmbed()
             .setTitle('Authorize')
-            .setDescription('Click the button below to authorize this app through the official WakaTime website.');
+            .setDescription(`Click below to authorize **${accountName}** on **${apiBaseUrl}**.`);
 
         const buttons = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setStyle(ButtonStyle.Link)
                 .setLabel('Login')
-                .setURL(`${process.env.WAKATIME_BASE_URL || 'https://wakatime.com'}/oauth/authorize?${new URLSearchParams(authorizeQueryParams)}`),
+                .setURL(`${apiBaseUrl}/oauth/authorize?${new URLSearchParams(authorizeQueryParams)}`),
         );
 
         await interaction.reply({

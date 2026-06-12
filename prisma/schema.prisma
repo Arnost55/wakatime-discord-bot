@@ -14,6 +14,20 @@ model User {
   userId       String  @unique
   wakaUsername String?
   wakaUserId   String?
+  defaultAccount String?
+}
+
+model WakaAccount {
+  id           Int    @id @default(autoincrement())
+  userId       String
+  name         String
+  apiBaseUrl   String
+  accessToken  String
+  refreshToken String
+  wakaUsername String?
+  wakaUserId   String?
+
+  @@unique([userId, name])
 }
 
 model DigestConfig {
@@ -31,5 +45,6 @@ model GoalRole {
   roleId      String
   targetHours Int
   range       String @default("all_time")
+
   @@unique([guildId, range, targetHours])
 }

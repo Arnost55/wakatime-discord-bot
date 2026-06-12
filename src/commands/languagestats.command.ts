@@ -1,20 +1,14 @@
 import { Command } from '../structure/Command';
 import axios from 'axios';
-import { getAllUsers } from '../db/user/user.model';
+import { prismaClient } from '../db/prisma';
 import { generatePieChart } from '../utils/graphs';
 import { defaultEmbed, errorEmbed, loadingEmbed } from '../utils/embeds';
 import { StatsResponse } from '../types/wakatime/stats.types';
 import { MessageFlags, AttachmentBuilder } from 'discord.js';
 
-/**
- * Get stats for a specific programming language across all registered users.
- * Displays total hours and a per-user breakdown with a pie chart.
- *
- * @see https://wakatime.com/developers#stats
- */
 export default new Command({
     name: 'languagestats',
-    description: 'Get stats about a specific programming language across all registered users.',
+    description: 'Get stats about a specific programming language across all users.',
     options: [
         {
             name: 'language',
@@ -22,14 +16,24 @@ export default new Command({
             type: 3,
             required: true,
         },
+        {
+            name: 'instance',
+            description: 'API base URL to filter by (optional).',
+            type: 3,
+            required: false,
+        },
     ],
     run: async ({ interaction, args }) => {
         const language = args.getString('language', true);
-        const users = await getAllUsers();
+        const instanceFilter = args.getString('instance');
 
-        if (users.length === 0) {
+        const accounts = instanceFilter
+            ? await prismaClient.wakaAccount.findMany({ where: { apiBaseUrl: instanceFilter, wakaUsername: { not: null } } })
+            : await prismaClient.wakaAccount.findMany({ where: { wakaUsername: { not: null } } });
+
+        if (accounts.length === 0) {
             return interaction.reply({
-                embeds: [errorEmbed('No Users', 'No users are registered yet.')],
+                embeds: [errorEmbed('No Users', 'No accounts found.')],
                 flags: MessageFlags.Ephemeral,
             });
         }
@@ -37,11 +41,10 @@ export default new Command({
         await interaction.reply({ embeds: [loadingEmbed()], flags: MessageFlags.Ephemeral });
 
         try {
-            const baseUrl = process.env.WAKATIME_BASE_URL || 'https://wakatime.com';
             const statsResults = await Promise.allSettled(
-                users.map((u) =>
-                    axios<StatsResponse>(`${baseUrl}/api/v1/users/${u.wakaUsername}/stats`).then((r) => ({
-                        username: u.wakaUsername!,
+                accounts.map((a) =>
+                    axios<StatsResponse>(`${a.apiBaseUrl}/api/v1/users/${a.wakaUsername}/stats`).then((r) => ({
+                        username: `${a.wakaUsername} (${a.name})`,
                         data: r.data.data,
                     })),
                 ),

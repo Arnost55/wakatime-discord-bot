@@ -1,6 +1,7 @@
 import { Command } from '../structure/Command';
 import axios from 'axios';
 import { getUserById } from '../db/user/user.model';
+import { resolveAccount } from '../utils/resolve-account';
 import { generatePieChart } from '../utils/graphs';
 import { defaultEmbed, errorEmbed, loadingEmbed } from '../utils/embeds';
 import { StatsResponse } from '../types/wakatime/stats.types';
@@ -25,6 +26,12 @@ export default new Command({
             required: false,
         },
         {
+            name: 'account',
+            description: 'Which account to use (defaults to your default account).',
+            type: 3,
+            required: false,
+        },
+        {
             name: 'range',
             description: 'Time range for the stats.',
             type: 3,
@@ -34,16 +41,18 @@ export default new Command({
     ],
     run: async ({ interaction, args }) => {
         const targetUser = args.getUser('user') || interaction.user;
+        const accountName = args.getString('account');
         const range = args.getString('range') || 'last_7_days';
-        const dbUser = await getUserById(targetUser.id);
-        const wakaUsername = dbUser?.wakaUsername;
 
-        if (!wakaUsername) {
-            const isSelf = targetUser.id === interaction.user.id;
+        const isSelf = targetUser.id === interaction.user.id;
+        const lookupUserId = isSelf ? interaction.user.id : targetUser.id;
+
+        const account = await resolveAccount(lookupUserId, accountName);
+        if (!account?.wakaUsername) {
             return interaction.reply({
                 embeds: [errorEmbed('Not Registered', isSelf
-                    ? 'You haven\'t authorized yet. Use `/authorize` first.'
-                    : `${targetUser.username} hasn't authorized yet.`)],
+                    ? 'No account found. Use `/authorize` or `/account add` first.'
+                    : `${targetUser.username} has no account linked.`)],
                 flags: MessageFlags.Ephemeral,
             });
         }
@@ -51,8 +60,7 @@ export default new Command({
         await interaction.reply({ embeds: [loadingEmbed()], flags: MessageFlags.Ephemeral });
 
         try {
-            const baseUrl = process.env.WAKATIME_BASE_URL || 'https://wakatime.com';
-            const response = await axios<StatsResponse>(`${baseUrl}/api/v1/users/${wakaUsername}/stats/${range}`);
+            const response = await axios<StatsResponse>(`${account.apiBaseUrl}/api/v1/users/${account.wakaUsername}/stats/${range}`);
             const data = response.data.data;
 
             const fields = [
@@ -83,7 +91,7 @@ export default new Command({
             await interaction.editReply({
                 embeds: [
                     defaultEmbed()
-                        .setTitle(`${targetUser.username}'s Profile (${range.replace(/_/g, ' ')})`)
+                        .setTitle(`${targetUser.username}'s Profile (${account.name} · ${range.replace(/_/g, ' ')})`)
                         .setFields(fields)
                         .setImage('attachment://languages.png'),
                 ],

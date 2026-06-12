@@ -1,16 +1,8 @@
-/**
- * View WakaTime goals and progress for the calling user.
- * Fetches goals from the WakaTime Goals API and renders
- * each enabled goal with a visual progress bar and date range.
- *
- * @see https://wakatime.com/developers#goals
- */
-
 import { Command } from '../structure/Command';
 import axios from 'axios';
-import { getUserById } from '../db/user/user.model';
 import { decrypt } from '../utils/crypto';
 import { keys } from '..';
+import { resolveAccount } from '../utils/resolve-account';
 import { defaultEmbed, errorEmbed, loadingEmbed } from '../utils/embeds';
 import { GoalsResponse } from '../types/wakatime/goals.types';
 import { MessageFlags } from 'discord.js';
@@ -18,12 +10,21 @@ import { MessageFlags } from 'discord.js';
 export default new Command({
     name: 'goals',
     description: 'View your WakaTime goals and progress.',
-    run: async ({ interaction }) => {
-        const dbUser = await getUserById(interaction.user.id);
+    options: [
+        {
+            name: 'account',
+            description: 'Which account to check (defaults to your default).',
+            type: 3,
+            required: false,
+        },
+    ],
+    run: async ({ interaction, args }) => {
+        const accountName = args.getString('account');
+        const account = await resolveAccount(interaction.user.id, accountName);
 
-        if (!dbUser?.wakaUserId || !dbUser?.accessToken) {
+        if (!account?.wakaUserId || !account?.accessToken) {
             return interaction.reply({
-                embeds: [errorEmbed('Not Authorized', 'You need to authorize first via `/authorize`.')],
+                embeds: [errorEmbed('Not Authorized', 'No account found. Use `/authorize` or `/account add` first.')],
                 flags: MessageFlags.Ephemeral,
             });
         }
@@ -31,11 +32,10 @@ export default new Command({
         await interaction.reply({ embeds: [loadingEmbed()], flags: MessageFlags.Ephemeral });
 
         try {
-            const [nonce, chiperText] = dbUser.accessToken.split('$');
+            const [nonce, chiperText] = account.accessToken.split('$');
             const token = decrypt(chiperText, nonce, keys);
 
-            const baseUrl = process.env.WAKATIME_BASE_URL || 'https://wakatime.com';
-            const response = await axios<GoalsResponse>(`${baseUrl}/api/v1/users/${dbUser.wakaUserId}/goals`, {
+            const response = await axios<GoalsResponse>(`${account.apiBaseUrl}/api/v1/users/${account.wakaUserId}/goals`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
@@ -43,7 +43,7 @@ export default new Command({
 
             if (goals.length === 0) {
                 return interaction.editReply({
-                    embeds: [errorEmbed('No Goals', 'You have no goals set on WakaTime.')],
+                    embeds: [errorEmbed('No Goals', 'You have no goals set on this account.')],
                 });
             }
 
@@ -59,22 +59,18 @@ export default new Command({
                 });
 
             await interaction.editReply({
-                embeds: [defaultEmbed().setTitle('🎯 WakaTime Goals').setFields(fields)],
+                embeds: [defaultEmbed()
+                    .setTitle(`Goals - ${account.name}`)
+                    .setFields(fields)],
             });
         } catch {
             await interaction.editReply({
-                embeds: [errorEmbed('Error', 'Failed to fetch goals. Make sure you have goals set on WakaTime.')],
+                embeds: [errorEmbed('Error', 'Failed to fetch goals.')],
             });
         }
     },
 });
 
-/**
- * Generate a text-based progress bar string.
- * @param percent - Completion percentage (0–100).
- * @param length  - Number of characters in the bar.
- * @returns A string of filled (█) and empty (░) blocks.
- */
 function generateProgressBar(percent: number, length: number): string {
     const filled = Math.round((percent / 100) * length);
     const empty = length - filled;

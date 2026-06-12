@@ -5,6 +5,7 @@ import { ExtendedClient } from './structure/Client';
 import { generateKeyPair } from './utils/crypto';
 import { Logger } from 'tslog';
 import { startDigestScheduler } from './services/digest';
+import { migrateExistingUsersToAccounts } from './db/account/account.model';
 
 dotenv.config();
 
@@ -17,5 +18,6 @@ let keys: sodium.KeyPair;
 sodium.ready.then(() => {
     keys = generateKeyPair();
 });
+migrateExistingUsersToAccounts();
 startDigestScheduler();
 export { keys };

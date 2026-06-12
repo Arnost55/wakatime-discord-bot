@@ -3,15 +3,30 @@ import axios from 'axios';
 import qs from 'qs';
 import { encrypt, formatNonceAndChiperText } from '../utils/crypto';
 import { keys } from '..';
+import { upsertAccount, migrateExistingUsersToAccounts } from '../db/account/account.model';
 import { isUser, saveUser, updateUser } from '../db/user/user.model';
 
-export const userStates = new Map<string, string>();
+export type OAuthState = {
+    discordUserId: string;
+    apiBaseUrl: string;
+    accountName: string;
+};
+
+export const userStates = new Map<string, OAuthState>();
 
 const app = express();
 app.get('/redirect', async (req, res) => {
     const code = req.query.code;
     try {
-        const response = await axios(`${process.env.WAKATIME_BASE_URL || 'https://wakatime.com'}/oauth/token`, {
+        const stateData = userStates.get(req.query.state.toString());
+        if (!stateData) {
+            res.send('Error: Invalid state - Try requesting a new authentication link.');
+            return;
+        }
+
+        const { discordUserId, apiBaseUrl, accountName } = stateData;
+
+        const response = await axios(`${apiBaseUrl}/oauth/token`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -25,12 +40,6 @@ app.get('/redirect', async (req, res) => {
             }),
         });
 
-        const userId = userStates.get(req.query.state.toString());
-        if (!userId) {
-            res.send('Error: Invalid state - Try requesting a new authentication link.');
-            return;
-        }
-
         const { access_token, refresh_token } = qs.parse(response.data);
         const { nonce: accessTokenNonce, chiperText: accessTokenChiperText } = encrypt(access_token.toString(), keys);
         const { nonce: refreshTokenNonce, chiperText: refreshTokenChiperText } = encrypt(
@@ -41,7 +50,7 @@ app.get('/redirect', async (req, res) => {
         let wakaUsername: string | undefined;
         let wakaUserId: string | undefined;
         try {
-            const userResponse = await axios(`${process.env.WAKATIME_BASE_URL || 'https://wakatime.com'}/api/v1/users/current`, {
+            const userResponse = await axios(`${apiBaseUrl}/api/v1/users/current`, {
                 headers: { Authorization: `Bearer ${access_token}` },
             });
             wakaUsername = userResponse.data?.data?.username;
@@ -50,31 +59,42 @@ app.get('/redirect', async (req, res) => {
             console.log('Failed to fetch WakaTime user info');
         }
 
-        const userExists = await isUser(userId);
-        if (userExists) {
-            await updateUser({
-                userId: userId,
-                accessToken: formatNonceAndChiperText(accessTokenNonce, accessTokenChiperText),
-                refreshToken: formatNonceAndChiperText(refreshTokenNonce, refreshTokenChiperText),
-                wakaUsername,
-                wakaUserId,
-            });
-        } else {
-            await saveUser({
-                userId: userId,
-                accessToken: formatNonceAndChiperText(accessTokenNonce, accessTokenChiperText),
-                refreshToken: formatNonceAndChiperText(refreshTokenNonce, refreshTokenChiperText),
-                wakaUsername,
-                wakaUserId,
-            });
+        await upsertAccount({
+            userId: discordUserId,
+            name: accountName,
+            apiBaseUrl,
+            accessToken: formatNonceAndChiperText(accessTokenNonce, accessTokenChiperText),
+            refreshToken: formatNonceAndChiperText(refreshTokenNonce, refreshTokenChiperText),
+            wakaUsername,
+            wakaUserId,
+        });
+
+        if (accountName === 'default') {
+            const userExists = await isUser(discordUserId);
+            if (userExists) {
+                await updateUser({
+                    userId: discordUserId,
+                    accessToken: formatNonceAndChiperText(accessTokenNonce, accessTokenChiperText),
+                    refreshToken: formatNonceAndChiperText(refreshTokenNonce, refreshTokenChiperText),
+                    wakaUsername,
+                    wakaUserId,
+                });
+            } else {
+                await saveUser({
+                    userId: discordUserId,
+                    accessToken: formatNonceAndChiperText(accessTokenNonce, accessTokenChiperText),
+                    refreshToken: formatNonceAndChiperText(refreshTokenNonce, refreshTokenChiperText),
+                    wakaUsername,
+                    wakaUserId,
+                });
+            }
         }
 
         res.send('Success! You can close this window now.');
     } catch (error) {
         console.log(error);
-        const errorData = qs.parse(error.response.data);
-
-        res.send(`Error: ${errorData.error} - ${errorData.error_description}`);
+        const errorData = error.response?.data ? qs.parse(error.response.data) : {};
+        res.send(`Error: ${errorData.error || 'Unknown'} - ${errorData.error_description || 'Something went wrong.'}`);
     }
 });
 

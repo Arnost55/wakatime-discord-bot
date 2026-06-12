@@ -1,7 +1,7 @@
 import { Command } from '../structure/Command';
 import axios from 'axios';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags, AttachmentBuilder } from 'discord.js';
-import { getAllUsers } from '../db/user/user.model';
+import { prismaClient } from '../db/prisma';
 import { generatePieChart } from '../utils/graphs';
 import { defaultEmbed, errorEmbed, loadingEmbed } from '../utils/embeds';
 import { StatsResponse } from '../types/wakatime/stats.types';
@@ -19,8 +19,14 @@ const PAGE_SIZE = 5;
 
 export default new Command({
     name: 'rank',
-    description: 'Rank all registered users by total coding time.',
+    description: 'Rank users by coding time on a specific instance.',
     options: [
+        {
+            name: 'instance',
+            description: 'API base URL to filter by (optional).',
+            type: 3,
+            required: false,
+        },
         {
             name: 'range',
             description: 'Time range for the stats.',
@@ -30,12 +36,16 @@ export default new Command({
         },
     ],
     run: async ({ interaction, args }) => {
+        const instanceFilter = args.getString('instance');
         const range = args.getString('range') || 'last_7_days';
-        const users = await getAllUsers();
 
-        if (users.length === 0) {
+        const allAccounts = instanceFilter
+            ? await prismaClient.wakaAccount.findMany({ where: { apiBaseUrl: instanceFilter, wakaUsername: { not: null } } })
+            : await prismaClient.wakaAccount.findMany({ where: { wakaUsername: { not: null } } });
+
+        if (allAccounts.length === 0) {
             return interaction.reply({
-                embeds: [errorEmbed('No Users', 'No users are registered yet.')],
+                embeds: [errorEmbed('No Users', 'No accounts found.')],
                 flags: MessageFlags.Ephemeral,
             });
         }
@@ -43,12 +53,11 @@ export default new Command({
         await interaction.reply({ embeds: [loadingEmbed()], flags: MessageFlags.Ephemeral });
 
         try {
-            const baseUrl = process.env.WAKATIME_BASE_URL || 'https://wakatime.com';
             const statsResults = await Promise.allSettled(
-                users.map((u) =>
-                    axios<StatsResponse>(`${baseUrl}/api/v1/users/${u.wakaUsername}/stats/${range}`)
+                allAccounts.map((a) =>
+                    axios<StatsResponse>(`${a.apiBaseUrl}/api/v1/users/${a.wakaUsername}/stats/${range}`)
                         .then((r) => ({
-                            username: u.wakaUsername!,
+                            username: `${a.wakaUsername} (${a.name})`,
                             data: r.data.data,
                         })),
                 ),
@@ -68,7 +77,7 @@ export default new Command({
 
             if (entries.length === 0) {
                 return interaction.editReply({
-                    embeds: [errorEmbed('No Data', 'Could not fetch stats for any user.')],
+                    embeds: [errorEmbed('No Data', 'Could not fetch stats.')],
                 });
             }
 
@@ -95,8 +104,12 @@ export default new Command({
                 inline: false,
             });
 
+            const title = instanceFilter
+                ? `User Ranking (${instanceFilter} · ${range.replace(/_/g, ' ')})`
+                : `User Ranking (${range.replace(/_/g, ' ')})`;
+
             const embed = defaultEmbed()
-                .setTitle(`User Ranking (${range.replace(/_/g, ' ')})`)
+                .setTitle(title)
                 .setFields(fields)
                 .setImage('attachment://rank.png')
                 .setFooter({ text: `Page 1 of ${totalPages}` });

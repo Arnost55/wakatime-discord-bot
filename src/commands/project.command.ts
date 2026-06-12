@@ -1,17 +1,11 @@
 import { Command } from '../structure/Command';
 import axios from 'axios';
-import { getUserById } from '../db/user/user.model';
+import { resolveAccount } from '../utils/resolve-account';
 import { generatePieChart } from '../utils/graphs';
 import { defaultEmbed, errorEmbed, loadingEmbed } from '../utils/embeds';
 import { StatsResponse } from '../types/wakatime/stats.types';
 import { MessageFlags, AttachmentBuilder } from 'discord.js';
 
-/**
- * Get project time breakdown for a user.
- * Fetches stats from the WakaTime API and renders a project pie chart.
- *
- * @see https://wakatime.com/developers#stats
- */
 export default new Command({
     name: 'project',
     description: 'Get project stats for a user.',
@@ -22,15 +16,21 @@ export default new Command({
             type: 6,
             required: true,
         },
+        {
+            name: 'account',
+            description: 'Which account to use (defaults to their default).',
+            type: 3,
+            required: false,
+        },
     ],
     run: async ({ interaction, args }) => {
         const targetUser = args.getUser('user', true);
-        const dbUser = await getUserById(targetUser.id);
-        const wakaUsername = dbUser?.wakaUsername;
+        const accountName = args.getString('account');
 
-        if (!wakaUsername) {
+        const account = await resolveAccount(targetUser.id, accountName);
+        if (!account?.wakaUsername) {
             return interaction.reply({
-                embeds: [errorEmbed('Not Registered', `${targetUser.username} hasn't authorized yet.`)],
+                embeds: [errorEmbed('Not Registered', `${targetUser.username} has no account linked.`)],
                 flags: MessageFlags.Ephemeral,
             });
         }
@@ -38,8 +38,7 @@ export default new Command({
         await interaction.reply({ embeds: [loadingEmbed()], flags: MessageFlags.Ephemeral });
 
         try {
-            const baseUrl = process.env.WAKATIME_BASE_URL || 'https://wakatime.com';
-            const response = await axios<StatsResponse>(`${baseUrl}/api/v1/users/${wakaUsername}/stats`);
+            const response = await axios<StatsResponse>(`${account.apiBaseUrl}/api/v1/users/${account.wakaUsername}/stats`);
             const projects = response.data.data.projects
                 .sort((a, b) => b.total_seconds - a.total_seconds)
                 .slice(0, 15);
@@ -63,7 +62,7 @@ export default new Command({
             await interaction.editReply({
                 embeds: [
                     defaultEmbed()
-                        .setTitle(`Projects - ${targetUser.username}`)
+                        .setTitle(`Projects - ${targetUser.username} (${account.name})`)
                         .setFields(fields)
                         .setImage('attachment://projects.png'),
                 ],

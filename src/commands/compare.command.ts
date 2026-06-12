@@ -7,7 +7,7 @@ import { MessageFlags } from 'discord.js';
 
 export default new Command({
     name: 'compare',
-    description: 'Compare coding stats between two users (cross-instance supported).',
+    description: 'Compare coding stats between two users.',
     options: [
         {
             name: 'user1',
@@ -21,27 +21,13 @@ export default new Command({
             type: 6,
             required: true,
         },
-        {
-            name: 'account1',
-            description: 'Account name for user1 (defaults to their default).',
-            type: 3,
-            required: false,
-        },
-        {
-            name: 'account2',
-            description: 'Account name for user2 (defaults to their default).',
-            type: 3,
-            required: false,
-        },
     ],
     run: async ({ interaction, args }) => {
         const user1 = args.getUser('user1', true);
         const user2 = args.getUser('user2', true);
-        const account1Name = args.getString('account1');
-        const account2Name = args.getString('account2');
 
-        const acc1 = await resolveAccount(user1.id, account1Name);
-        const acc2 = await resolveAccount(user2.id, account2Name);
+        const acc1 = await resolveAccount(user1.id);
+        const acc2 = await resolveAccount(user2.id);
 
         if (!acc1?.wakaUsername || !acc2?.wakaUsername) {
             return interaction.reply({
@@ -82,12 +68,12 @@ export default new Command({
                 .setTitle('Compare Coding Stats')
                 .addFields(
                     {
-                        name: `${user1.username} (${acc1.name} · ${acc1.apiBaseUrl})`,
+                        name: `${user1.username}`,
                         value: `\`\`\`${d1.human_readable_total}\nDaily: ${d1.human_readable_daily_average}\`\`\``,
                         inline: true,
                     },
                     {
-                        name: `${user2.username} (${acc2.name} · ${acc2.apiBaseUrl})`,
+                        name: `${user2.username}`,
                         value: `\`\`\`${d2.human_readable_total}\nDaily: ${d2.human_readable_daily_average}\`\`\``,
                         inline: true,
                     },

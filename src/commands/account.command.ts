@@ -1,31 +1,25 @@
 import { Command } from '../structure/Command';
 import sodium from 'libsodium-wrappers-sumo';
 import { userStates } from '../api';
-import { getAccounts, deleteAccount, setDefaultAccount, getDefaultAccount } from '../db/account/account.model';
+import { getAccounts, deleteAccount, setDefaultAccount, getDefaultAccount, updateAccount } from '../db/account/account.model';
 import { defaultEmbed, errorEmbed } from '../utils/embeds';
 import { resolveForkUrl, resolveClientCredentials, getKnownForkNames } from '../utils/resolve-fork';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 
 export default new Command({
     name: 'account',
-    description: 'Manage your multiple WakaTime API accounts.',
+    description: 'Manage your Hackatime accounts.',
     options: [
         {
             name: 'add',
-            description: 'Add a new WakaTime API account.',
+            description: 'Add a new API account (e.g. "hackatime", "wakatime").',
             type: 1,
             options: [
                 {
                     name: 'name',
-                    description: 'A name for this account (e.g. "hakatime", "work").',
+                    description: 'Which service? (hackatime, wakatime, or a custom URL)',
                     type: 3,
                     required: true,
-                },
-                {
-                    name: 'url',
-                    description: 'API base URL or fork name. Default: resolves name as a fork.',
-                    type: 3,
-                    required: false,
                 },
             ],
         },
@@ -60,22 +54,49 @@ export default new Command({
                 },
             ],
         },
+        {
+            name: 'embed',
+            description: 'Set WakaTime embed chart URLs for flex posts.',
+            type: 1,
+            options: [
+                {
+                    name: 'account',
+                    description: 'The account name.',
+                    type: 3,
+                    required: true,
+                },
+                {
+                    name: 'chart',
+                    description: 'Chart type (languages, projects).',
+                    type: 3,
+                    required: true,
+                    choices: [
+                        { name: 'Languages', value: 'languages' },
+                        { name: 'Projects', value: 'projects' },
+                    ],
+                },
+                {
+                    name: 'url',
+                    description: 'The embed chart URL from wakatime.com/share/embed.',
+                    type: 3,
+                    required: true,
+                },
+            ],
+        },
     ],
     run: async ({ interaction, args }) => {
         const sub = args.getSubcommand();
 
         if (sub === 'add') {
             const name = args.getString('name', true);
-            const rawUrl = args.getString('url');
-            const forkIdentifier = rawUrl || name;
-            const apiBaseUrl = rawUrl ? resolveForkUrl(rawUrl) : resolveForkUrl(name);
-            const { clientId, clientSecret } = resolveClientCredentials(forkIdentifier);
+            const apiBaseUrl = resolveForkUrl(name);
+            const { clientId, clientSecret } = resolveClientCredentials(name);
 
             if (!apiBaseUrl.startsWith('http://') && !apiBaseUrl.startsWith('https://')) {
                 const known = getKnownForkNames().map((f) => `\`${f}\``).join(', ');
                 return interaction.reply({
-                    embeds: [errorEmbed('Unknown Fork',
-                        `Could not resolve **${name}** to a URL.\nKnown forks: ${known || '(none configured)'}\n\nUse a full URL instead, or set \`WAKATIME_FORK_${name.toUpperCase().replace(/[^A-Z0-9_]/g, '_')}\` in the bot's env.`)],
+                    embeds: [errorEmbed('Unknown Service',
+                        `Could not resolve **${name}** to a URL.\nKnown services: ${known || '(none configured)'}\n\nUse a full URL instead, or set the fork's env var.`)],
                     flags: MessageFlags.Ephemeral,
                 });
             }
@@ -89,11 +110,13 @@ export default new Command({
                 clientSecret,
             });
 
+            const scope = apiBaseUrl.includes('hackatime') ? 'profile read' : 'email,read_logged_time,read_stats';
+
             const authorizeQueryParams = {
                 client_id: clientId,
                 redirect_uri: `${process.env.API_URL}/redirect`,
                 response_type: 'code',
-                scope: 'email,read_logged_time,read_stats',
+                scope,
                 state: state,
             };
 
@@ -129,7 +152,7 @@ export default new Command({
             const defaultAcc = await getDefaultAccount(interaction.user.id);
             const fields = accounts.map((a) => ({
                 name: `${a.name}${defaultAcc?.name === a.name ? ' ⭐' : ''}`,
-                value: `\`\`\`${a.apiBaseUrl}\`\`\`${a.wakaUsername ? `WakaTime: **${a.wakaUsername}**` : ''}`,
+                value: `\`\`\`${a.apiBaseUrl}\`\`\`${a.wakaUsername ? `Username: **${a.wakaUsername}**` : ''}`,
                 inline: false,
             }));
 
@@ -171,6 +194,33 @@ export default new Command({
             await setDefaultAccount(interaction.user.id, name);
             await interaction.reply({
                 embeds: [defaultEmbed().setTitle('Default Set').setDescription(`**${name}** is now your default account.`)],
+                flags: MessageFlags.Ephemeral,
+            });
+            return;
+        }
+
+        if (sub === 'embed') {
+            const accountName = args.getString('account', true);
+            const chartType = args.getString('chart', true);
+            const url = args.getString('url', true);
+
+            const account = await getAccounts(interaction.user.id);
+            const target = account.find((a) => a.name === accountName);
+            if (!target) {
+                return interaction.reply({
+                    embeds: [errorEmbed('Not Found', `No account named **${accountName}**.`)],
+                    flags: MessageFlags.Ephemeral,
+                });
+            }
+
+            const currentUrls = target.embedUrls as Record<string, string> | null || {};
+            currentUrls[chartType] = url;
+
+            await updateAccount(interaction.user.id, accountName, { embedUrls: currentUrls });
+            await interaction.reply({
+                embeds: [defaultEmbed().setTitle('Embed Chart Set').setDescription(
+                    `**${chartType}** chart URL set for account **${accountName}**.`
+                )],
                 flags: MessageFlags.Ephemeral,
             });
             return;

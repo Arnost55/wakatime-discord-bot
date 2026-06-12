@@ -1,6 +1,6 @@
 {
   "name": "wakatime-discord-bot",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Discord bot that integrates with the WakaTime API to display coding stats, profiles, leaderboards, language analytics, goals tracking, and daily digests in your Discord server.",
   "main": "index.js",
   "scripts": {

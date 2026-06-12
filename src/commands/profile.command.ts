@@ -4,6 +4,7 @@ import { getUserById } from '../db/user/user.model';
 import { resolveAccount } from '../utils/resolve-account';
 import { generatePieChart } from '../utils/graphs';
 import { defaultEmbed, errorEmbed, loadingEmbed } from '../utils/embeds';
+import { sendFlex } from '../utils/flex';
 import { StatsResponse } from '../types/wakatime/stats.types';
 import { MessageFlags, AttachmentBuilder } from 'discord.js';
 
@@ -17,18 +18,12 @@ const RANGE_CHOICES = [
 
 export default new Command({
     name: 'profile',
-    description: 'Get detailed profile for a WakaTime user with language pie chart.',
+    description: 'Show your coding profile with language chart.',
     options: [
         {
             name: 'user',
-            description: 'The Discord user to look up (leave empty for yourself).',
+            description: 'User to look up (leave empty for yourself).',
             type: 6,
-            required: false,
-        },
-        {
-            name: 'account',
-            description: 'Which account to use (defaults to your default account).',
-            type: 3,
             required: false,
         },
         {
@@ -41,17 +36,16 @@ export default new Command({
     ],
     run: async ({ interaction, args }) => {
         const targetUser = args.getUser('user') || interaction.user;
-        const accountName = args.getString('account');
         const range = args.getString('range') || 'last_7_days';
 
         const isSelf = targetUser.id === interaction.user.id;
         const lookupUserId = isSelf ? interaction.user.id : targetUser.id;
 
-        const account = await resolveAccount(lookupUserId, accountName);
+        const account = await resolveAccount(lookupUserId);
         if (!account?.wakaUsername) {
             return interaction.reply({
                 embeds: [errorEmbed('Not Registered', isSelf
-                    ? 'No account found. Use `/authorize` or `/account add` first.'
+                    ? 'No account found. Use `/authorize` first.'
                     : `${targetUser.username} has no account linked.`)],
                 flags: MessageFlags.Ephemeral,
             });
@@ -84,19 +78,29 @@ export default new Command({
                 },
             ];
 
-            const points = data.languages.map((l) => ({ label: l.name, value: l.percent }));
-            const chartBuffer = await generatePieChart(points);
-            const attachment = new AttachmentBuilder(chartBuffer, { name: 'languages.png' });
+            const embedUrls = account.embedUrls as Record<string, string> | null;
+            const embedChartUrl = embedUrls?.languages;
+
+            const embed = defaultEmbed()
+                .setTitle(`${targetUser.username}'s Profile${account.name !== 'default' ? ` (${account.name})` : ''} · ${range.replace(/_/g, ' ')}`)
+                .setFields(fields);
+
+            let attachment: AttachmentBuilder | undefined;
+            if (embedChartUrl) {
+                embed.setImage(embedChartUrl);
+            } else {
+                const points = data.languages.map((l) => ({ label: l.name, value: l.percent }));
+                const chartBuffer = await generatePieChart(points);
+                attachment = new AttachmentBuilder(chartBuffer, { name: 'languages.png' });
+                embed.setImage('attachment://languages.png');
+            }
 
             await interaction.editReply({
-                embeds: [
-                    defaultEmbed()
-                        .setTitle(`${targetUser.username}'s Profile (${account.name} · ${range.replace(/_/g, ' ')})`)
-                        .setFields(fields)
-                        .setImage('attachment://languages.png'),
-                ],
-                files: [attachment],
+                embeds: [embed],
+                files: attachment ? [attachment] : undefined,
             });
+
+            await sendFlex(embed, attachment ? [attachment] : undefined, interaction.user.tag);
         } catch {
             await interaction.editReply({
                 embeds: [errorEmbed('Error', 'Failed to fetch profile data.')],

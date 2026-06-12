@@ -3,12 +3,13 @@ import axios from 'axios';
 import { prismaClient } from '../db/prisma';
 import { generatePieChart } from '../utils/graphs';
 import { defaultEmbed, errorEmbed, loadingEmbed } from '../utils/embeds';
+import { sendFlex } from '../utils/flex';
 import { StatsResponse } from '../types/wakatime/stats.types';
 import { MessageFlags, AttachmentBuilder } from 'discord.js';
 
 export default new Command({
     name: 'languagestats',
-    description: 'Get stats about a specific programming language across all users.',
+    description: 'See which users have used a specific language.',
     options: [
         {
             name: 'language',
@@ -16,20 +17,11 @@ export default new Command({
             type: 3,
             required: true,
         },
-        {
-            name: 'instance',
-            description: 'API base URL to filter by (optional).',
-            type: 3,
-            required: false,
-        },
     ],
     run: async ({ interaction, args }) => {
         const language = args.getString('language', true);
-        const instanceFilter = args.getString('instance');
 
-        const accounts = instanceFilter
-            ? await prismaClient.wakaAccount.findMany({ where: { apiBaseUrl: instanceFilter, wakaUsername: { not: null } } })
-            : await prismaClient.wakaAccount.findMany({ where: { wakaUsername: { not: null } } });
+        const accounts = await prismaClient.wakaAccount.findMany({ where: { wakaUsername: { not: null } } });
 
         if (accounts.length === 0) {
             return interaction.reply({
@@ -72,15 +64,17 @@ export default new Command({
             const chartBuffer = await generatePieChart(points);
             const attachment = new AttachmentBuilder(chartBuffer, { name: 'langstats.png' });
 
+            const embed = defaultEmbed()
+                .setTitle(`${language} Stats`)
+                .setDescription(`**${totalHours}** total hours across ${points.length} user(s)`)
+                .setImage('attachment://langstats.png');
+
             await interaction.editReply({
-                embeds: [
-                    defaultEmbed()
-                        .setTitle(`${language} Stats`)
-                        .setDescription(`**${totalHours}** total hours across ${points.length} user(s)`)
-                        .setImage('attachment://langstats.png'),
-                ],
+                embeds: [embed],
                 files: [attachment],
             });
+
+            await sendFlex(embed, [attachment], interaction.user.tag);
         } catch {
             await interaction.editReply({
                 embeds: [errorEmbed('Error', 'Failed to fetch language stats.')],

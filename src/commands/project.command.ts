@@ -3,31 +3,25 @@ import axios from 'axios';
 import { resolveAccount } from '../utils/resolve-account';
 import { generatePieChart } from '../utils/graphs';
 import { defaultEmbed, errorEmbed, loadingEmbed } from '../utils/embeds';
+import { sendFlex } from '../utils/flex';
 import { StatsResponse } from '../types/wakatime/stats.types';
 import { MessageFlags, AttachmentBuilder } from 'discord.js';
 
 export default new Command({
     name: 'project',
-    description: 'Get project stats for a user.',
+    description: 'See a user\'s project time breakdown.',
     options: [
         {
             name: 'user',
-            description: 'The Discord user to look up.',
+            description: 'The user to look up.',
             type: 6,
             required: true,
-        },
-        {
-            name: 'account',
-            description: 'Which account to use (defaults to their default).',
-            type: 3,
-            required: false,
         },
     ],
     run: async ({ interaction, args }) => {
         const targetUser = args.getUser('user', true);
-        const accountName = args.getString('account');
 
-        const account = await resolveAccount(targetUser.id, accountName);
+        const account = await resolveAccount(targetUser.id);
         if (!account?.wakaUsername) {
             return interaction.reply({
                 embeds: [errorEmbed('Not Registered', `${targetUser.username} has no account linked.`)],
@@ -55,19 +49,29 @@ export default new Command({
                 inline: true,
             }));
 
-            const points = projects.map((p) => ({ label: p.name, value: p.total_seconds }));
-            const chartBuffer = await generatePieChart(points);
-            const attachment = new AttachmentBuilder(chartBuffer, { name: 'projects.png' });
+            const embedUrls = account.embedUrls as Record<string, string> | null;
+            const embedChartUrl = embedUrls?.projects;
+
+            const embed = defaultEmbed()
+                .setTitle(`Projects - ${targetUser.username}${account.name !== 'default' ? ` (${account.name})` : ''}`)
+                .setFields(fields);
+
+            let attachment: AttachmentBuilder | undefined;
+            if (embedChartUrl) {
+                embed.setImage(embedChartUrl);
+            } else {
+                const points = projects.map((p) => ({ label: p.name, value: p.total_seconds }));
+                const chartBuffer = await generatePieChart(points);
+                attachment = new AttachmentBuilder(chartBuffer, { name: 'projects.png' });
+                embed.setImage('attachment://projects.png');
+            }
 
             await interaction.editReply({
-                embeds: [
-                    defaultEmbed()
-                        .setTitle(`Projects - ${targetUser.username} (${account.name})`)
-                        .setFields(fields)
-                        .setImage('attachment://projects.png'),
-                ],
-                files: [attachment],
+                embeds: [embed],
+                files: attachment ? [attachment] : undefined,
             });
+
+            await sendFlex(embed, attachment ? [attachment] : undefined, interaction.user.tag);
         } catch {
             await interaction.editReply({
                 embeds: [errorEmbed('Error', 'Failed to fetch project data.')],

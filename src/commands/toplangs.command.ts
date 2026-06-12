@@ -3,26 +3,15 @@ import axios from 'axios';
 import { prismaClient } from '../db/prisma';
 import { generateBarChart } from '../utils/graphs';
 import { defaultEmbed, errorEmbed, loadingEmbed } from '../utils/embeds';
+import { sendFlex } from '../utils/flex';
 import { StatsResponse } from '../types/wakatime/stats.types';
 import { MessageFlags, AttachmentBuilder } from 'discord.js';
 
 export default new Command({
     name: 'toplangs',
-    description: 'Get the top languages across all registered accounts.',
-    options: [
-        {
-            name: 'instance',
-            description: 'API base URL to filter by (optional).',
-            type: 3,
-            required: false,
-        },
-    ],
-    run: async ({ interaction, args }) => {
-        const instanceFilter = args.getString('instance');
-
-        const accounts = instanceFilter
-            ? await prismaClient.wakaAccount.findMany({ where: { apiBaseUrl: instanceFilter, wakaUsername: { not: null } } })
-            : await prismaClient.wakaAccount.findMany({ where: { wakaUsername: { not: null } } });
+    description: 'See the most popular languages across all users.',
+    run: async ({ interaction }) => {
+        const accounts = await prismaClient.wakaAccount.findMany({ where: { wakaUsername: { not: null } } });
 
         if (accounts.length === 0) {
             return interaction.reply({
@@ -86,15 +75,17 @@ export default new Command({
             const chartBuffer = await generateBarChart(topLanguages, datasets);
             const attachment = new AttachmentBuilder(chartBuffer, { name: 'toplangs.png' });
 
+            const embed = defaultEmbed()
+                .setTitle('Top Languages')
+                .setFields(fields)
+                .setImage('attachment://toplangs.png');
+
             await interaction.editReply({
-                embeds: [
-                    defaultEmbed()
-                        .setTitle('Top Languages')
-                        .setFields(fields)
-                        .setImage('attachment://toplangs.png'),
-                ],
+                embeds: [embed],
                 files: [attachment],
             });
+
+            await sendFlex(embed, [attachment], interaction.user.tag);
         } catch {
             await interaction.editReply({
                 embeds: [errorEmbed('Error', 'Failed to fetch language stats.')],

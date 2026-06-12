@@ -9,22 +9,13 @@ import { MessageFlags } from 'discord.js';
 
 export default new Command({
     name: 'goals',
-    description: 'View your WakaTime goals and progress.',
-    options: [
-        {
-            name: 'account',
-            description: 'Which account to check (defaults to your default).',
-            type: 3,
-            required: false,
-        },
-    ],
-    run: async ({ interaction, args }) => {
-        const accountName = args.getString('account');
-        const account = await resolveAccount(interaction.user.id, accountName);
+    description: 'View your coding goals and progress.',
+    run: async ({ interaction }) => {
+        const account = await resolveAccount(interaction.user.id);
 
         if (!account?.wakaUserId || !account?.accessToken) {
             return interaction.reply({
-                embeds: [errorEmbed('Not Authorized', 'No account found. Use `/authorize` or `/account add` first.')],
+                embeds: [errorEmbed('Not Authorized', 'No account found. Use `/authorize` first.')],
                 flags: MessageFlags.Ephemeral,
             });
         }
@@ -60,7 +51,7 @@ export default new Command({
 
             await interaction.editReply({
                 embeds: [defaultEmbed()
-                    .setTitle(`Goals - ${account.name}`)
+                    .setTitle('Your Goals')
                     .setFields(fields)],
             });
         } catch {

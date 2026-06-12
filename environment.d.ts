@@ -17,8 +17,15 @@ declare global {
             CLIENT_SECRET: string;
             WAKATIME_BASE_URL?: string;
 
+            // Flex / Public
+            FLEX_CHANNEL_ID?: string;
+
             // Crypto
             CRYPTO_PASSWORD: string;
+
+            // Dynamic: WAKATIME_FORK_<NAME> resolves to a URL
+            // Dynamic: WAKATIME_FORK_<NAME>_CLIENT_ID, WAKATIME_FORK_<NAME>_CLIENT_SECRET
+            // (These are read dynamically at runtime from process.env)
         }
     }
 }

@@ -18,7 +18,7 @@ model User {
 }
 
 model WakaAccount {
-  id           Int    @id @default(autoincrement())
+  id           Int     @id @default(autoincrement())
   userId       String
   name         String
   apiBaseUrl   String
@@ -26,6 +26,7 @@ model WakaAccount {
   refreshToken String
   wakaUsername String?
   wakaUserId   String?
+  embedUrls    Json?
 
   @@unique([userId, name])
 }

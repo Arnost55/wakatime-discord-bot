@@ -6,4 +6,7 @@ export type AccountDto = {
     refreshToken: string;
     wakaUsername?: string;
     wakaUserId?: string;
+    embedUrls?: Record<string, string>;
 };
+
+export type EmbedChartType = 'languages' | 'projects';

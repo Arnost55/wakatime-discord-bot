@@ -4,6 +4,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags, AttachmentB
 import { prismaClient } from '../db/prisma';
 import { generatePieChart } from '../utils/graphs';
 import { defaultEmbed, errorEmbed, loadingEmbed } from '../utils/embeds';
+import { sendFlex } from '../utils/flex';
 import { StatsResponse } from '../types/wakatime/stats.types';
 import { setRankPageData } from '../events/interactionCreate.event';
 
@@ -19,14 +20,8 @@ const PAGE_SIZE = 5;
 
 export default new Command({
     name: 'rank',
-    description: 'Rank users by coding time on a specific instance.',
+    description: 'See who coded the most.',
     options: [
-        {
-            name: 'instance',
-            description: 'API base URL to filter by (optional).',
-            type: 3,
-            required: false,
-        },
         {
             name: 'range',
             description: 'Time range for the stats.',
@@ -36,12 +31,9 @@ export default new Command({
         },
     ],
     run: async ({ interaction, args }) => {
-        const instanceFilter = args.getString('instance');
         const range = args.getString('range') || 'last_7_days';
 
-        const allAccounts = instanceFilter
-            ? await prismaClient.wakaAccount.findMany({ where: { apiBaseUrl: instanceFilter, wakaUsername: { not: null } } })
-            : await prismaClient.wakaAccount.findMany({ where: { wakaUsername: { not: null } } });
+        const allAccounts = await prismaClient.wakaAccount.findMany({ where: { wakaUsername: { not: null } } });
 
         if (allAccounts.length === 0) {
             return interaction.reply({
@@ -104,12 +96,8 @@ export default new Command({
                 inline: false,
             });
 
-            const title = instanceFilter
-                ? `User Ranking (${instanceFilter} · ${range.replace(/_/g, ' ')})`
-                : `User Ranking (${range.replace(/_/g, ' ')})`;
-
             const embed = defaultEmbed()
-                .setTitle(title)
+                .setTitle(`User Ranking (${range.replace(/_/g, ' ')})`)
                 .setFields(fields)
                 .setImage('attachment://rank.png')
                 .setFooter({ text: `Page 1 of ${totalPages}` });
@@ -145,6 +133,8 @@ export default new Command({
                 files: [attachment],
                 components: totalPages > 1 ? [buildButtons(0)] : undefined,
             });
+
+            await sendFlex(embed, [attachment], interaction.user.tag);
 
             if (totalPages > 1) {
                 setRankPageData(msg.id, {

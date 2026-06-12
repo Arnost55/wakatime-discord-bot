@@ -17,6 +17,7 @@ A Discord bot that integrates with the [WakaTime API](https://wakatime.com/devel
 - **Coding Stats** — View total time logged since account creation (`/all-time-since-today`)
 - **Secure Token Storage** — Access and refresh tokens are encrypted at rest using libsodium (NaCl) with Argon2id key derivation
 - **Self-hosted OAuth API** — Built-in Express server handles the OAuth redirect callback
+- **Flex / Public Posting** — Automatically repost stats and charts to a public "flex" channel for community sharing (`FLEX_CHANNEL_ID`)
 - **Docker Support** — Ready-to-use Dockerfile and docker-compose for containerized deployment
 - **Database Migrations** — Prisma ORM with PostgreSQL for user and multi-account token persistence
 
@@ -29,6 +30,7 @@ A Discord bot that integrates with the [WakaTime API](https://wakatime.com/devel
 | `/account list`                                                | List all your linked accounts with their API base URLs.                                               |
 | `/account remove <name>`                                       | Remove a linked account.                                                                              |
 | `/account default <name>`                                      | Set a default account for commands that don't specify one.                                            |
+| `/account embed <account> <chart> <url>`                       | Set a WakaTime embed chart URL (languages/projects) for account flex posts.                           |
 | `/profile [user] [account] [range]`                            | View coding profile with language pie chart. Supports time range & account selection.                 |
 | `/rank [instance] [range]`                                     | Rank all registered users by total coding time with paginated chart. Optionally filter by API instance. |
 | `/compare <user1> <user2> [account1] [account2]`                | Compare coding stats between two users side-by-side (cross-instance supported).                       |
@@ -117,9 +119,11 @@ Copy `.env.example` to `.env` and fill in the values:
 | `API_PORT`          | No       | Port for the OAuth redirect API server (default: `3000`).                                                                                                                |
 | `CLIENT_ID`         | Yes      | Your WakaTime OAuth App client ID (from [WakaTime Apps](https://wakatime.com/apps)).                                                                                     |
 | `CLIENT_SECRET`     | Yes      | Your WakaTime OAuth App client secret.                                                                                                                                   |
-| `WAKATIME_BASE_URL` | No       | Base URL for the WakaTime API (default: `https://wakatime.com`). Useful for self-hosted WakaTime-compatible instances like [Hakatime](https://github.com/mujx/hakatime). |
-| `WAKATIME_FORK_*`   | No       | Define custom fork names as `WAKATIME_FORK_<NAME>=<URL>` (e.g., `WAKATIME_FORK_HAKATIME=https://hakatime.example.com`). Users can then use the short name in `/authorize` and `/account add`. |
-| `CRYPTO_PASSWORD`   | Yes      | Password used to derive encryption keys via Argon2id for token storage. Choose a strong, random password.                                                                |
+| `WAKATIME_BASE_URL` | No       | Base URL for the WakaTime API (default: `https://hackatime.hackclub.com`). Used by the `/authorize` command for the legacy "default" account. |
+| `WAKATIME_FORK_*`   | No       | Define custom fork names as `WAKATIME_FORK_<NAME>=<URL>` (e.g., `WAKATIME_FORK_HAKATIME=https://hakatime.example.com`). Users can then use the short name in `/authorize` and `/account add`. Built-in fork names: `wakatime` → `https://wakatime.com`, `hackatime` → `https://hackatime.hackclub.com`. |
+| `WAKATIME_FORK_*_CLIENT_ID` / `WAKATIME_FORK_*_CLIENT_SECRET` | No | Per-fork OAuth credentials. Override the global `CLIENT_ID`/`CLIENT_SECRET` for a specific fork (e.g., `WAKATIME_FORK_WAKATIME_CLIENT_ID=...`). Falls back to the global credentials if not set. |
+| `FLEX_CHANNEL_ID`   | No       | Channel ID for automatically reposting stats and charts as public "flex" messages visible to the entire server. |
+| `CRYPTO_PASSWORD`   | Yes      | Password used to derive encryption keys via Argon2id for token storage. Choose a strong, random password. |
 
 > **\*** `GUILD_ID` is required if you want the bot to work in a specific server. Remove it from `.env` to register commands globally (may take up to 1 hour to propagate).
 
@@ -129,23 +133,23 @@ Copy `.env.example` to `.env` and fill in the values:
 ┌─────────────────┐       ┌───────────────────────────┐       ┌─────────────────┐
 │   Discord API   │◄─────►│     Discord Bot (src)      │──────►│   WakaTime API  │
 └─────────────────┘       │                           │       └─────────────────┘
-                            │  ┌─────────────────────┐  │              ▲
-                            │  │    Slash Commands    │  │              │
-                            │  │  • account add/list  │  │   OAuth2     │
-                            │  │    /remove/default   │  │   Bearer     │
-                            │  │  • profile [account] │  │   Token      │
-                            │  │  • rank [instance]   │  │              │
-                            │  │  • compare u1 u2     │  │              │
-                            │  │  • toplangs[instance]│  │              │
-                            │  │  • languagestats     │  │              │
-                            │  │  • project [account] │  │              │
-                            │  │  • goals [account]   │  │              │
-                            │  │  • digest            │  │              │
-                            │  │  • all-time-since-   │  │              │
-                            │  │    today             │  │              │
-                            │  │  • authorize [name]  │  │              │
-                            │  │  • revoke            │  │              │
-                            │  │  • help              │  │              │
+                           │  ┌─────────────────────┐  │              ▲
+                           │  │    Slash Commands    │  │              │
+                           │  │  • account add/list │  │   OAuth2     │
+                           │  │    /remove/default/ │  │   Bearer     │
+                           │  │    embed            │  │   Token      │
+                           │  │  • profile [user]   │  │              │
+                           │  │  • rank [range]     │  │              │
+                           │  │  • compare u1 u2    │  │              │
+                           │  │  • toplangs         │  │              │
+                           │  │  • languagestats    │  │              │
+                           │  │  • project <user>   │  │              │
+                           │  │  • goals            │  │              │
+                           │  │  • digest           │  │              │
+                           │  │  • all-time-since-  │  │              │
+                           │  │    today            │  │              │
+                           │  │  • authorize        │  │              │
+                           │  │  • revoke / help    │  │              │
                            │  └──────────┬──────────┘  │              │
                            │             │              │              │
                            │  ┌──────────▼──────────┐  │              │
@@ -160,6 +164,12 @@ Copy `.env.example` to `.env` and fill in the values:
                            │  │  • daily summary     │  │              │
                            │  │  • user rankings     │  │              │
                            │  └─────────────────────┘  │              │
+                           │                           │              │
+                           │  ┌─────────────────────┐  │              │
+                           │  │   Flex Poster        │──┼──► #flex    │
+                           │  │   • sendFlex()       │  │   channel   │
+                           │  │   • auto-repost      │  │   (public)  │
+                           │  └─────────────────────┘  │              │
                            └───────────────────────────┘              │
                                        │                               │
                                        ▼                               │
@@ -167,18 +177,18 @@ Copy `.env.example` to `.env` and fill in the values:
                            │    Express OAuth API      │───────────────┘
                            │    GET /redirect           │  Exchanges auth
                            │                           │  code for tokens
-                           └──────────────────────────┘
-                                       │
-                                       ▼
-                            ┌───────────────────────────┐
-                            │     PostgreSQL (Prisma)    │
-                            │   • User (encrypted       │
-                            │     tokens)                │
-                            │   • WakaAccount (multi-   │
-                            │     instance accounts)    │
-                            │   • DigestConfig           │
-                            │   • GoalRole               │
-                            └───────────────────────────┘
+                           └──────────────────────────┘               │
+                                       │                               │
+                                       ▼                               │
+                            ┌───────────────────────────┐             │
+                            │     PostgreSQL (Prisma)    │             │
+                            │   • User (encrypted       │             │
+                            │     tokens)                │             │
+                            │   • WakaAccount (multi-   │             │
+                            │     instance accounts)    │             │
+                            │   • DigestConfig           │             │
+                            │   • GoalRole               │             │
+                            └───────────────────────────┘             │
 ```
 
 ### Key Directories
@@ -187,7 +197,7 @@ Copy `.env.example` to `.env` and fill in the values:
 | ------------------ | ------------------------------------------------------------------------------------------ |
 | `src/index.ts`     | Application entry point — initializes bot, API, crypto, digest scheduler, account migration|
 | `src/structure/`   | Core classes: `Client`, `Command`, `Event`                                                 |
-| `src/commands/`    | Slash command implementations (14 commands)                                                |
+| `src/commands/`    | Slash command implementations (15+ commands)                                                |
 | `src/commands/auth/` | Authorization subcommands (`authorize`)                                                    |
 | `src/events/`      | Discord event handlers (`interactionCreate` with rank pagination, `ready`)                 |
 | `src/api/`         | Express OAuth redirect server with multi-account state management                          |
@@ -196,7 +206,7 @@ Copy `.env.example` to `.env` and fill in the values:
 | `src/db/`          | Prisma database client and models (`User`, `WakaAccount`, `DigestConfig`, `GoalRole`)       |
 | `src/db/account/`  | `WakaAccount` model, DTO, and CRUD operations for multi-instance accounts                  |
 | `src/db/user/`     | `User` model, DTO, and CRUD operations                                                     |
-| `src/utils/`       | Crypto (libsodium encryption), embed helpers, chart generation, account/fork resolution    |
+| `src/utils/`       | Crypto (libsodium encryption), embed helpers, chart generation, account/fork resolution, flex posting |
 | `src/types/`       | TypeScript type definitions (WakaTime API models, core types, goals, stats)                |
 | `prisma/`          | Prisma schema and migrations (`User`, `WakaAccount`, `DigestConfig`, `GoalRole`)           |
 

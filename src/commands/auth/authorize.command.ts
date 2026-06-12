@@ -4,37 +4,21 @@ import { ButtonStyle } from 'discord.js';
 import sodium from 'libsodium-wrappers-sumo';
 import { userStates } from '../../api';
 import { defaultEmbed } from '../../utils/embeds';
-import { resolveForkUrl, resolveClientCredentials } from '../../utils/resolve-fork';
+import { resolveClientCredentials } from '../../utils/resolve-fork';
 import { MessageFlags } from "discord.js";
 
 export default new Command({
     name: 'authorize',
-    description: 'Authorize this app through a WakaTime-compatible API.',
-    options: [
-        {
-            name: 'name',
-            description: 'Name for this account (default: "default").',
-            type: 3,
-            required: false,
-        },
-        {
-            name: 'url',
-            description: 'API base URL or fork name (e.g. "hakatime"). Defaults to WAKATIME_BASE_URL.',
-            type: 3,
-            required: false,
-        },
-    ],
-    run: async ({ interaction, args }) => {
-        const accountName = args.getString('name') || 'default';
-        const rawUrl = args.getString('url') || process.env.WAKATIME_BASE_URL || 'https://wakatime.com';
-        const apiBaseUrl = resolveForkUrl(rawUrl);
-        const { clientId, clientSecret } = resolveClientCredentials(rawUrl);
+    description: 'Link your Hackatime account to the bot.',
+    run: async ({ interaction }) => {
+        const apiBaseUrl = process.env.WAKATIME_BASE_URL || 'https://hackatime.hackclub.com';
+        const { clientId, clientSecret } = resolveClientCredentials(apiBaseUrl);
 
         const state = sodium.randombytes_buf(32, 'hex');
         userStates.set(state, {
             discordUserId: interaction.user.id,
             apiBaseUrl,
-            accountName,
+            accountName: 'default',
             clientId,
             clientSecret,
         });
@@ -43,18 +27,18 @@ export default new Command({
             client_id: clientId,
             redirect_uri: `${process.env.API_URL}/redirect`,
             response_type: 'code',
-            scope: 'email,read_logged_time,read_stats',
+            scope: 'profile read',
             state: state,
         };
 
         const embed = defaultEmbed()
             .setTitle('Authorize')
-            .setDescription(`Click below to authorize **${accountName}** on **${apiBaseUrl}**.`);
+            .setDescription('Click below to link your **Hackatime** account.');
 
         const buttons = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setStyle(ButtonStyle.Link)
-                .setLabel('Login')
+                .setLabel('Login with Hackatime')
                 .setURL(`${apiBaseUrl}/oauth/authorize?${new URLSearchParams(authorizeQueryParams)}`),
         );
 

@@ -4,7 +4,7 @@ import { ButtonStyle } from 'discord.js';
 import sodium from 'libsodium-wrappers-sumo';
 import { userStates } from '../../api';
 import { defaultEmbed } from '../../utils/embeds';
-import { resolveForkUrl } from '../../utils/resolve-fork';
+import { resolveForkUrl, resolveClientCredentials } from '../../utils/resolve-fork';
 import { MessageFlags } from "discord.js";
 
 export default new Command({
@@ -28,16 +28,19 @@ export default new Command({
         const accountName = args.getString('name') || 'default';
         const rawUrl = args.getString('url') || process.env.WAKATIME_BASE_URL || 'https://wakatime.com';
         const apiBaseUrl = resolveForkUrl(rawUrl);
+        const { clientId, clientSecret } = resolveClientCredentials(rawUrl);
 
         const state = sodium.randombytes_buf(32, 'hex');
         userStates.set(state, {
             discordUserId: interaction.user.id,
             apiBaseUrl,
             accountName,
+            clientId,
+            clientSecret,
         });
 
         const authorizeQueryParams = {
-            client_id: process.env.CLIENT_ID,
+            client_id: clientId,
             redirect_uri: `${process.env.API_URL}/redirect`,
             response_type: 'code',
             scope: 'email,read_logged_time,read_stats',

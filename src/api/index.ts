@@ -3,13 +3,15 @@ import axios from 'axios';
 import qs from 'qs';
 import { encrypt, formatNonceAndChiperText } from '../utils/crypto';
 import { keys } from '..';
-import { upsertAccount, migrateExistingUsersToAccounts } from '../db/account/account.model';
+import { upsertAccount } from '../db/account/account.model';
 import { isUser, saveUser, updateUser } from '../db/user/user.model';
 
 export type OAuthState = {
     discordUserId: string;
     apiBaseUrl: string;
     accountName: string;
+    clientId: string;
+    clientSecret: string;
 };
 
 export const userStates = new Map<string, OAuthState>();
@@ -24,7 +26,7 @@ app.get('/redirect', async (req, res) => {
             return;
         }
 
-        const { discordUserId, apiBaseUrl, accountName } = stateData;
+        const { discordUserId, apiBaseUrl, accountName, clientId, clientSecret } = stateData;
 
         const response = await axios(`${apiBaseUrl}/oauth/token`, {
             method: 'POST',
@@ -32,8 +34,8 @@ app.get('/redirect', async (req, res) => {
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
             data: qs.stringify({
-                client_id: process.env.CLIENT_ID,
-                client_secret: process.env.CLIENT_SECRET,
+                client_id: clientId,
+                client_secret: clientSecret,
                 redirect_uri: `${process.env.API_URL}/redirect`,
                 grant_type: 'authorization_code',
                 code,

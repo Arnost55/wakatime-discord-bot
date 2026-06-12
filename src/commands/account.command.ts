@@ -3,7 +3,7 @@ import sodium from 'libsodium-wrappers-sumo';
 import { userStates } from '../api';
 import { getAccounts, deleteAccount, setDefaultAccount, getDefaultAccount } from '../db/account/account.model';
 import { defaultEmbed, errorEmbed } from '../utils/embeds';
-import { resolveForkUrl, getKnownForkNames } from '../utils/resolve-fork';
+import { resolveForkUrl, resolveClientCredentials, getKnownForkNames } from '../utils/resolve-fork';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 
 export default new Command({
@@ -67,7 +67,9 @@ export default new Command({
         if (sub === 'add') {
             const name = args.getString('name', true);
             const rawUrl = args.getString('url');
+            const forkIdentifier = rawUrl || name;
             const apiBaseUrl = rawUrl ? resolveForkUrl(rawUrl) : resolveForkUrl(name);
+            const { clientId, clientSecret } = resolveClientCredentials(forkIdentifier);
 
             if (!apiBaseUrl.startsWith('http://') && !apiBaseUrl.startsWith('https://')) {
                 const known = getKnownForkNames().map((f) => `\`${f}\``).join(', ');
@@ -83,10 +85,12 @@ export default new Command({
                 discordUserId: interaction.user.id,
                 apiBaseUrl,
                 accountName: name,
+                clientId,
+                clientSecret,
             });
 
             const authorizeQueryParams = {
-                client_id: process.env.CLIENT_ID,
+                client_id: clientId,
                 redirect_uri: `${process.env.API_URL}/redirect`,
                 response_type: 'code',
                 scope: 'email,read_logged_time,read_stats',

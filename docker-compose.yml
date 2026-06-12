@@ -2,7 +2,5 @@ services:
   bot:
     build: .
     env_file: .env
-    volumes:
-      - ./salt.txt:/app/salt.txt
     ports:
       - "${API_PORT:-3000}:3000"

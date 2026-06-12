@@ -88,14 +88,23 @@ export function formatNonceAndChiperText(nonce: string, chiperText: string): str
  */
 function getSalt(): string {
     try {
+        const stat = fs.statSync('./salt.txt');
+        if (stat.isDirectory()) {
+            fs.rmdirSync('./salt.txt');
+            fs.writeFileSync('./salt.txt', '');
+            return '';
+        }
+    } catch {}
+
+    try {
         return fs
             .readFileSync('./salt.txt', {
                 encoding: 'utf-8',
                 flag: 'r',
             })
             .toString();
-    } catch (error) {
-        fs.writeFileSync('./salt.txt', '');
+    } catch {
+        return '';
     }
 }
 

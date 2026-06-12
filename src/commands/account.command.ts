@@ -3,6 +3,7 @@ import sodium from 'libsodium-wrappers-sumo';
 import { userStates } from '../api';
 import { getAccounts, deleteAccount, setDefaultAccount, getDefaultAccount } from '../db/account/account.model';
 import { defaultEmbed, errorEmbed } from '../utils/embeds';
+import { resolveForkUrl, getKnownForkNames } from '../utils/resolve-fork';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 
 export default new Command({
@@ -22,9 +23,9 @@ export default new Command({
                 },
                 {
                     name: 'url',
-                    description: 'The API base URL (e.g. https://wakatime.com).',
+                    description: 'API base URL or fork name. Default: resolves name as a fork.',
                     type: 3,
-                    required: true,
+                    required: false,
                 },
             ],
         },
@@ -65,11 +66,14 @@ export default new Command({
 
         if (sub === 'add') {
             const name = args.getString('name', true);
-            const url = args.getString('url', true);
+            const rawUrl = args.getString('url');
+            const apiBaseUrl = rawUrl ? resolveForkUrl(rawUrl) : resolveForkUrl(name);
 
-            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            if (!apiBaseUrl.startsWith('http://') && !apiBaseUrl.startsWith('https://')) {
+                const known = getKnownForkNames().map((f) => `\`${f}\``).join(', ');
                 return interaction.reply({
-                    embeds: [errorEmbed('Invalid URL', 'URL must start with http:// or https://')],
+                    embeds: [errorEmbed('Unknown Fork',
+                        `Could not resolve **${name}** to a URL.\nKnown forks: ${known || '(none configured)'}\n\nUse a full URL instead, or set \`WAKATIME_FORK_${name.toUpperCase().replace(/[^A-Z0-9_]/g, '_')}\` in the bot's env.`)],
                     flags: MessageFlags.Ephemeral,
                 });
             }
@@ -77,7 +81,7 @@ export default new Command({
             const state = sodium.randombytes_buf(32, 'hex');
             userStates.set(state, {
                 discordUserId: interaction.user.id,
-                apiBaseUrl: url,
+                apiBaseUrl,
                 accountName: name,
             });
 
@@ -91,13 +95,13 @@ export default new Command({
 
             const embed = defaultEmbed()
                 .setTitle(`Add Account: ${name}`)
-                .setDescription(`Click below to authorize **${name}** on **${url}**.`);
+                .setDescription(`Click below to authorize **${name}** on **${apiBaseUrl}**.`);
 
             const buttons = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                     .setStyle(ButtonStyle.Link)
                     .setLabel(`Login with ${name}`)
-                    .setURL(`${url}/oauth/authorize?${new URLSearchParams(authorizeQueryParams)}`),
+                    .setURL(`${apiBaseUrl}/oauth/authorize?${new URLSearchParams(authorizeQueryParams)}`),
             );
 
             await interaction.reply({

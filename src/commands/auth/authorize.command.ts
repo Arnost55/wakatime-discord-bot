@@ -4,6 +4,7 @@ import { ButtonStyle } from 'discord.js';
 import sodium from 'libsodium-wrappers-sumo';
 import { userStates } from '../../api';
 import { defaultEmbed } from '../../utils/embeds';
+import { resolveForkUrl } from '../../utils/resolve-fork';
 import { MessageFlags } from "discord.js";
 
 export default new Command({
@@ -18,14 +19,15 @@ export default new Command({
         },
         {
             name: 'url',
-            description: 'Custom API base URL (default: WAKATIME_BASE_URL env).',
+            description: 'API base URL or fork name (e.g. "hakatime"). Defaults to WAKATIME_BASE_URL.',
             type: 3,
             required: false,
         },
     ],
     run: async ({ interaction, args }) => {
         const accountName = args.getString('name') || 'default';
-        const apiBaseUrl = args.getString('url') || process.env.WAKATIME_BASE_URL || 'https://wakatime.com';
+        const rawUrl = args.getString('url') || process.env.WAKATIME_BASE_URL || 'https://wakatime.com';
+        const apiBaseUrl = resolveForkUrl(rawUrl);
 
         const state = sodium.randombytes_buf(32, 'hex');
         userStates.set(state, {
